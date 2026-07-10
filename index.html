@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>/chan/ - Video & Image Boards</title>
+    <style>
+        :root {
+            --bg-color: #eef2ff;
+            --board-bg: #d6daf0;
+            --text-color: #111111;
+            --link-color: #34345c;
+            --border-color: #b7c5d9;
+            --card-bg: #d6daf0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        header {
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #af0a0f;
+            font-size: 24px;
+            margin: 5px 0 15px 0;
+        }
+
+        .board-nav {
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .board-nav a {
+            color: var(--link-color);
+            text-decoration: none;
+            font-weight: bold;
+            padding: 0 5px;
+        }
+
+        .board-nav a:hover {
+            color: #ff0000;
+        }
+
+        .search-container {
+            margin: 10px auto;
+            max-width: 400px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .search-bar {
+            flex: 1;
+            padding: 6px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            font-size: 14px;
+        }
+
+        .search-btn {
+            background-color: #f0f0f0;
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 3px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .view {
+            display: none;
+        }
+
+        .view.active {
+            display: block;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+            padding: 10px 0;
+        }
+
+        .post-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            padding: 8px;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+        }
+
+        .post-info {
+            font-size: 12px;
+            color: #444;
+            margin-bottom: 8px;
+            border-bottom: 1px dashed var(--border-color);
+            padding-bottom: 4px;
+        }
+
+        .media-container {
+            width: 100%;
+            height: 240px;
+            background-color: #000;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        video, img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+        }
+
+        .media-placeholder {
+            position: absolute;
+            color: #aaa;
+            font-size: 14px;
+            pointer-events: none;
+        }
+
+        .welcome-msg {
+            background-color: var(--board-bg);
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            text-align: center;
+        }
+
+        .focus-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.9);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .focus-overlay.active {
+            display: flex;
+        }
+
+        .focus-content {
+            position: relative;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .focus-video, .focus-img {
+            width: 100%;
+            max-height: 80vh;
+            object-fit: contain;
+            display: none;
+        }
+
+        .focus-video.active, .focus-img.active {
+            display: block;
+            pointer-events: auto;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div id="navigation-bar" class="board-nav">
+            [ <a href="#" onclick="switchBoard('general')">gen</a> ]
+        </div>
+        <h1 id="board-title">/gen/ - General Board</h1>
+        
+        <div class="search-container">
+            <input type="text" id="board-search" class="search-bar" placeholder="Search Post ID across all boards...">
+            <button class="search-btn" onclick="executeGlobalSearch()">Search</button>
+            <button class="search-btn" onclick="clearSearch()">Clear</button>
+        </div>
+    </header>
+
+    <div id="views-container" class="container">
+        <div id="view-general" class="view active">
+            <div class="welcome-msg">
+                <h2>Welcome to the Media Board System</h2>
+                <p>Select a custom board from the navigation layout above to begin browsing content posts.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="media-focus-overlay" class="focus-overlay" onclick="closeFocusView()">
+        <div class="focus-content" onclick="event.stopPropagation()">
+            <button class="close-btn" onclick="closeFocusView()">[X]</button>
+            <video id="focused-video-player" class="focus-video" controls autoplay loop></video>
+            <img id="focused-image-viewer" class="focus-img" src="" alt="focused expansion">
+        </div>
+    </div>
+
+    <script>
+        let currentActiveBoard = 'general';
+        let appData = { boards: {}, posts: [] };
+        let unloaderObserver = null;
+
+        window.addEventListener('DOMContentLoaded', loadAppData);
+
+        async function loadAppData() {
+            try {
+                const response = await fetch('/api/data');
+                appData = await response.json();
+                renderNavigationAndContainers();
+                initDynamicUnloader();
+            } catch (err) {
+                console.error("Failed loading app data schema:", err);
+            }
+        }
+
+        function renderNavigationAndContainers() {
+            const nav = document.getElementById('navigation-bar');
+            const container = document.getElementById('views-container');
+            
+            // Reset dynamic parts
+            nav.innerHTML = '[ <a href="#" onclick="switchBoard(\'general\')">gen</a> ]';
+            document.querySelectorAll('.dynamic-view').forEach(el => el.remove());
+
+            // Build structural components per board configuration found
+            Object.keys(appData.boards).forEach(boardName => {
+                const b = appData.boards[boardName];
+                
+                // Nav link
+                nav.innerHTML += ` :: [ <a href="#" onclick="switchBoard('${boardName}')">${boardName}</a> ]`;
+
+                // View grid shell
+                const viewDiv = document.createElement('div');
+                viewDiv.id = `view-${boardName}`;
+                viewDiv.className = 'view dynamic-view';
+                
+                const gridDiv = document.createElement('div');
+                gridDiv.id = `${boardName}-grid`;
+                gridDiv.className = 'grid';
+
+                viewDiv.appendChild(gridDiv);
+                container.appendChild(viewDiv);
+
+                // Filter and inject matching items
+                const boardPosts = appData.posts.filter(p => p.board === boardName);
+                boardPosts.forEach(post => {
+                    const card = createPostCard(post.id, boardName, post.src, post.type);
+                    gridDiv.appendChild(card);
+                });
+            });
+        }
+
+        function createPostCard(id, boardName, src, type) {
+            const card = document.createElement('div');
+            card.className = 'post-card';
+            card.setAttribute('data-id', id);
+            card.setAttribute('data-board', boardName);
+            card.setAttribute('data-type', type);
+
+            if (type === 'video') {
+                card.addEventListener('mouseenter', handleHoverPlay);
+                card.addEventListener('mouseleave', handleHoverStop);
+            }
+            card.addEventListener('click', () => launchFocusView(src, type));
+
+            card.innerHTML = `
+                <div class="post-info">
+                    <span style="color:#117743; font-weight:bold;">Anonymous</span> No. <span>${id}</span>
+                </div>
+                <div class="media-container" data-src="${src}" data-media-type="${type}">
+                    <div class="media-placeholder">Click to Open</div>
+                </div>
+            `;
+            return card;
+        }
+
+        function switchBoard(boardName) {
+            currentActiveBoard = boardName;
+            clearSearch();
+            
+            document.querySelectorAll('.view').forEach(view => view.classList.remove('active'));
+            const targetView = document.getElementById(`view-${boardName}`);
+            if (targetView) targetView.classList.add('active');
+
+            const titleEl = document.getElementById('board-title');
+            if (boardName === 'general') {
+                titleEl.textContent = '/gen/ - General Board';
+            } else {
+                const title = appData.boards[boardName]?.title || 'Board';
+                const type = appData.boards[boardName]?.type || 'media';
+                titleEl.textContent = `/${boardName}/ - ${title} (${type})`;
+            }
+        }
+
+        function initDynamicUnloader() {
+            if (unloaderObserver) unloaderObserver.disconnect();
+
+            const options = { root: null, rootMargin: '300px 0px', threshold: 0.0 };
+
+            unloaderObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const container = entry.target;
+                    const mediaSrc = container.getAttribute('data-src');
+                    const mediaType = container.getAttribute('data-media-type');
+                    const placeholder = container.querySelector('.media-placeholder');
+
+                    if (entry.isIntersecting) {
+                        if (!container.querySelector('video') && !container.querySelector('img')) {
+                            let element = (mediaType === 'video') ? document.createElement('video') : document.createElement('img');
+                            if (mediaType === 'video') {
+                                element.muted = true;
+                                element.loop = true;
+                                element.preload = "metadata";
+                                element.playsInline = true;
+                            }
+                            element.src = mediaSrc;
+                            element.onload = element.onloadeddata = () => {
+                                if (placeholder) placeholder.style.display = 'none';
+                            };
+                            container.appendChild(element);
+                        }
+                    } else {
+                        const element = container.querySelector('video, img');
+                        if (element) {
+                            if (mediaType === 'video') element.pause();
+                            element.removeAttribute('src');
+                            if (element.load) element.load();
+                            element.remove();
+                            if (placeholder) placeholder.style.display = 'block';
+                        }
+                    }
+                });
+            }, options);
+
+            document.querySelectorAll('.media-container').forEach(c => unloaderObserver.observe(c));
+        }
+
+        function handleHoverPlay(e) {
+            const video = e.currentTarget.querySelector('video');
+            if (video) { video.muted = true; video.play().catch(() => {}); }
+        }
+
+        function handleHoverStop(e) {
+            const video = e.currentTarget.querySelector('video');
+            if (video) { video.pause(); video.currentTime = 0; }
+        }
+
+        function launchFocusView(src, type) {
+            const overlay = document.getElementById('media-focus-overlay');
+            const videoPlayer = document.getElementById('focused-video-player');
+            const imageViewer = document.getElementById('focused-image-viewer');
+
+            videoPlayer.classList.remove('active');
+            imageViewer.classList.remove('active');
+
+            if (type === 'video') {
+                videoPlayer.src = src;
+                videoPlayer.muted = false;
+                videoPlayer.classList.add('active');
+                videoPlayer.play().catch(() => {});
+            } else {
+                imageViewer.src = src;
+                imageViewer.classList.add('active');
+            }
+            overlay.classList.add('active');
+        }
+
+        function closeFocusView() {
+            const overlay = document.getElementById('media-focus-overlay');
+            const videoPlayer = document.getElementById('focused-video-player');
+            const imageViewer = document.getElementById('focused-image-viewer');
+
+            overlay.classList.remove('active');
+            videoPlayer.pause();
+            videoPlayer.removeAttribute('src');
+            if (videoPlayer.load) videoPlayer.load();
+            imageViewer.removeAttribute('src');
+        }
+
+        function executeGlobalSearch() {
+            const query = document.getElementById('board-search').value.trim();
+            if (!query) { clearSearch(); return; }
+
+            let targetCard = null;
+            const allCards = document.querySelectorAll('.post-card');
+
+            allCards.forEach(card => {
+                if (card.getAttribute('data-id') === query) targetCard = card;
+            });
+
+            if (targetCard) {
+                const boardGroup = targetCard.getAttribute('data-board');
+                switchBoard(boardGroup);
+
+                allCards.forEach(card => {
+                    card.style.display = (card.getAttribute('data-id') === query) ? 'flex' : 'none';
+                });
+            } else {
+                alert("Post ID not found on any current dynamic board.");
+            }
+        }
+
+        function clearSearch() {
+            document.getElementById('board-search').value = '';
+            document.querySelectorAll('.post-card').forEach(card => card.style.display = 'flex');
+        }
+    </script>
+</body>
+</html>
