@@ -51,6 +51,13 @@
             border-bottom: 1px dashed #b7c5d9;
             font-size: 14px;
         }
+        .action-row {
+            display: flex;
+            gap: 8px;
+        }
+        .action-row input {
+            flex: 1;
+        }
     </style>
 </head>
 <body>
@@ -69,7 +76,7 @@
         <div class="admin-box">
             <h2>Create New Dynamic Board</h2>
             <div class="form-group">
-                <label>Board Short Code URI (e.g. "pics", "vids", "sasha")</label>
+                <label>Board Short Code URI (e.g. "pics", "vids")</label>
                 <input type="text" id="new-board-name" placeholder="lowercase simple characters only...">
             </div>
             <div class="form-group">
@@ -93,14 +100,19 @@
                 <select id="upload-board-target"></select>
             </div>
             <div class="form-group">
-                <label>Custom Post ID (Leave blank to randomize)</label>
+                <label>Custom Post ID (Only for single file, multi-files will auto-index)</label>
                 <input type="text" id="upload-custom-id" placeholder="e.g. 558291">
             </div>
             <div class="form-group">
-                <label>Select Target Media Asset File</label>
-                <input type="file" id="upload-file-field">
+                <label>Select Target Media Asset File(s)</label>
+                <input type="file" id="upload-file-field" multiple>
             </div>
-            <button onclick="uploadContentAsset()">Post & Upload File</button>
+            
+            <div id="progress-container" style="display:none; margin-bottom: 15px; background: #eee; border-radius: 3px; overflow: hidden;">
+                <div id="progress-bar" style="width: 0%; height: 20px; background-color: #117743; color: white; text-align: center; font-size: 12px; line-height: 20px; font-weight: bold;">0%</div>
+            </div>
+
+            <button onclick="uploadContentAsset()">Post & Upload File(s)</button>
         </div>
 
         <div class="admin-box">
@@ -109,8 +121,14 @@
         </div>
 
         <div class="admin-box">
-            <h2>System Asset Posts Inventory</h2>
-            <div id="posts-registry-list"></div>
+            <h2>Delete Asset Post by ID</h2>
+            <div class="form-group">
+                <label>Target Post ID</label>
+                <div class="action-row">
+                    <input type="text" id="delete-post-id" placeholder="Enter target Item ID (e.g., 482910)">
+                    <button class="danger-btn" onclick="deletePostAssetById()">Delete Asset</button>
+                </div>
+            </div>
         </div>
         
     </div>
@@ -137,12 +155,10 @@
                 
                 const boardTargetSelect = document.getElementById('upload-board-target');
                 const boardsList = document.getElementById('boards-registry-list');
-                const postsList = document.getElementById('posts-registry-list');
 
-                // Clear
+                // Clear layout structures
                 boardTargetSelect.innerHTML = '';
                 boardsList.innerHTML = '';
-                postsList.innerHTML = '';
 
                 // Render Boards options & listings
                 Object.keys(data.boards).forEach(name => {
@@ -153,16 +169,6 @@
                         <div class="list-item">
                             <span><strong>/${name}/</strong> - ${b.title} (${b.type})</span>
                             <button class="danger-btn" onclick="deleteBoard('${name}')">Delete Board</button>
-                        </div>
-                    `;
-                });
-
-                // Render Active Content Items Listings
-                data.posts.forEach(post => {
-                    postsList.innerHTML += `
-                        <div class="list-item">
-                            <span>ID: <strong>${post.id}</strong> [/${post.board}/] -> Path: ${post.src}</span>
-                            <button class="danger-btn" onclick="deletePostAsset('${post.id}')">Remove Post</button>
                         </div>
                     `;
                 });
@@ -187,7 +193,11 @@
             
             const result = await response.json();
             if(result.error) alert(result.error);
-            else refreshAdminDashboardView();
+            else {
+                document.getElementById('new-board-name').value = '';
+                document.getElementById('new-board-title').value = '';
+                refreshAdminDashboardView();
+            }
         }
 
         async function deleteBoard(name) {
@@ -205,39 +215,87 @@
             const board = document.getElementById('upload-board-target').value;
             const customId = document.getElementById('upload-custom-id').value;
             const fileInput = document.getElementById('upload-file-field');
+            
+            const progressContainer = document.getElementById('progress-container');
+            const progressBar = document.getElementById('progress-bar');
 
-            if(!board || fileInput.files.length === 0) return alert("Missing upload fields parameters.");
+            if (!board || fileInput.files.length === 0) return alert("Missing upload fields parameters.");
 
             const formData = new FormData();
             formData.append('board', board);
             formData.append('customId', customId);
-            formData.append('media', fileInput.files[0]);
-            formData.append('password', masterPass); // fallback authentication
+            formData.append('password', masterPass);
 
-            const response = await fetch('/api/posts/upload', {
-                method: 'POST',
-                headers: { 'x-admin-password': masterPass },
-                body: formData
-            });
-
-            const result = await response.json();
-            if(result.error) alert(result.error);
-            else {
-                fileInput.value = '';
-                document.getElementById('upload-custom-id').value = '';
-                refreshAdminDashboardView();
+            for (let i = 0; i < fileInput.files.length; i++) {
+                formData.append('media', fileInput.files[i]);
             }
+
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+            progressBar.textContent = '0%';
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/posts/upload', true);
+            xhr.setRequestHeader('x-admin-password', masterPass);
+
+            xhr.upload.onprogress = function (e) {
+                if (e.lengthComputable) {
+                    const percentage = Math.round((e.loaded / e.total) * 100);
+                    progressBar.style.width = percentage + '%';
+                    progressBar.textContent = percentage + '%';
+                }
+            };
+
+            xhr.onload = function () {
+                progressContainer.style.display = 'none';
+                
+                if (xhr.status === 200) {
+                    const result = JSON.parse(xhr.responseText);
+                    if (result.warnings) {
+                        alert("Upload complete with some issues:\n" + result.warnings.join('\n'));
+                    }
+                    fileInput.value = '';
+                    document.getElementById('upload-custom-id').value = '';
+                    refreshAdminDashboardView();
+                } else {
+                    try {
+                        const result = JSON.parse(xhr.responseText);
+                        alert(result.error || "An unknown file process error occurred.");
+                    } catch(e) {
+                        alert("Server returned error status code: " + xhr.status);
+                    }
+                }
+            };
+
+            xhr.onerror = function () {
+                progressContainer.style.display = 'none';
+                alert("Network connection error during transfer event.");
+            };
+
+            xhr.send(formData);
         }
 
-        async function deletePostAsset(id) {
-            if(!confirm(`Remove item allocation ID: #${id}?`)) return;
+        async function deletePostAssetById() {
+            const idInput = document.getElementById('delete-post-id');
+            const id = idInput.value.trim();
 
-            await fetch('/api/posts/delete', {
+            if (!id) return alert("Please specify an Asset ID to delete.");
+            if (!confirm(`Remove item allocation ID: #${id}?`)) return;
+
+            const response = await fetch('/api/posts/delete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-admin-password': masterPass },
                 body: JSON.stringify({ id })
             });
-            refreshAdminDashboardView();
+
+            const result = await response.json();
+            if (result.error) {
+                alert(result.error);
+            } else {
+                alert(`Successfully removed Post Asset #${id}`);
+                idInput.value = '';
+                refreshAdminDashboardView();
+            }
         }
     </script>
 </body>
