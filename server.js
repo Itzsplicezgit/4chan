@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 10000; // Updated for production Render binding
 const DB_FILE = path.join(__dirname, 'db.json');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 
@@ -73,53 +73,87 @@ app.post('/api/boards/delete', requireAuth, (req, res) => {
     
     if (db.boards[name]) {
         delete db.boards[name];
-        // Orphan clean-up: clear out associated posts
+        
+        // Remove associated files from disk before clearing references
+        const postsToRemove = db.posts.filter(post => post.board === name);
+        postsToRemove.forEach(post => {
+            const filePath = path.join(__dirname, post.src);
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        });
+
+        // Orphan clean-up: clear out associated posts from json array
         db.posts = db.posts.filter(post => post.board !== name);
         writeDB(db);
     }
     res.json({ success: true });
 });
 
-// Upload Content to a Board
-app.post('/api/posts/upload', requireAuth, upload.single('media'), (req, res) => {
+// Upload Multiple Content Items to a Board
+app.post('/api/posts/upload', requireAuth, upload.array('media'), (req, res) => {
     const { board, customId } = req.body;
-    if (!board || !req.file) return res.status(400).json({ error: 'Missing core upload assets' });
-
-    const db = readDB();
-    const postId = customId.trim() || String(Math.floor(100000 + Math.random() * 900000));
-
-    // Prevent duplicate IDs
-    if (db.posts.some(p => p.id === postId)) {
-        return res.status(400).json({ error: 'Post ID already exists.' });
+    if (!board || !req.files || req.files.length === 0) {
+        return res.status(400).json({ error: 'Missing core upload assets' });
     }
 
-    const fileExt = path.extname(req.file.filename).toLowerCase();
-    const isVideo = ['.mp4', '.webm', '.ogg', '.mov'].includes(fileExt);
-    const type = isVideo ? 'video' : 'image';
+    const db = readDB();
+    const errors = [];
+    const addedPosts = [];
 
-    const newPost = {
-        id: postId,
-        board: board,
-        src: `uploads/${req.file.filename}`,
-        type: type
-    };
+    req.files.forEach((file, index) => {
+        let postId = customId ? customId.trim() : '';
+        
+        if (!postId) {
+            postId = String(Math.floor(100000 + Math.random() * 900000));
+        } else if (req.files.length > 1) {
+            postId = `${postId}-${index + 1}`;
+        }
 
-    db.posts.push(newPost);
+        // Prevent duplicate IDs
+        if (db.posts.some(p => p.id === postId)) {
+            errors.push(`Post ID ${postId} already exists. Skipping file: ${file.originalname}`);
+            const filePath = path.join(__dirname, 'uploads', file.filename);
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+            return;
+        }
+
+        const fileExt = path.extname(file.filename).toLowerCase();
+        const isVideo = ['.mp4', '.webm', '.ogg', '.mov'].includes(fileExt);
+        const type = isVideo ? 'video' : 'image';
+
+        const newPost = {
+            id: postId,
+            board: board,
+            src: `uploads/${file.filename}`,
+            type: type
+        };
+
+        db.posts.push(newPost);
+        addedPosts.push(newPost);
+    });
+
     writeDB(db);
-    res.json({ success: true });
+
+    if (errors.length > 0 && addedPosts.length === 0) {
+        return res.status(400).json({ error: errors.join('\n') });
+    }
+
+    res.json({ 
+        success: true, 
+        message: `Successfully uploaded ${addedPosts.length} file(s).`,
+        warnings: errors.length > 0 ? errors : undefined
+    });
 });
 
 // Delete Content Item
 app.post('/api/posts/delete', requireAuth, (req, res) => {
     const { id } = req.body;
     const db = readDB();
-    const postIndex = db.posts.findIndex(p => p.id === id);
+    const postIndex = db.posts.findIndex(p => p.id === String(id).trim());
 
     if (postIndex !== -1) {
         const post = db.posts[postIndex];
         const filePath = path.join(__dirname, post.src);
         
-        // Remove file from storage disk safely
         if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
         }
