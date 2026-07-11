@@ -11,7 +11,18 @@ const UPLOADS_DIR = path.join(__dirname, 'uploads');
 // Ensure database and upload directory exist
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
 if (!fs.existsSync(DB_FILE)) {
-    fs.writeFileSync(DB_FILE, JSON.stringify({ boards: {}, posts: [] }, null, 2));
+    fs.writeFileSync(DB_FILE, JSON.stringify({ boards: {}, posts: [], pendingPosts: [] }, null, 2));
+} else {
+    // Migration: ensure pendingPosts array exists in old files
+    try {
+        const db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+        if (!db.pendingPosts) {
+            db.pendingPosts = [];
+            fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+        }
+    } catch (e) {
+        console.error("Database migration check failed:", e);
+    }
 }
 
 // Express Middleware
@@ -51,6 +62,41 @@ app.get('/api/data', (req, res) => {
     res.json(readDB());
 });
 
+// Public Route: Users upload files to a board for approval queue
+app.post('/api/posts/submit', upload.array('media'), (req, res) => {
+    const { board } = req.body;
+    if (!board || !req.files || req.files.length === 0) {
+        return res.status(400).json({ error: 'Missing core upload assets' });
+    }
+
+    const db = readDB();
+    const addedSubmissions = [];
+
+    req.files.forEach((file) => {
+        const postId = String(Math.floor(100000 + Math.random() * 900000));
+        const fileExt = path.extname(file.filename).toLowerCase();
+        const isVideo = ['.mp4', '.webm', '.ogg', '.mov'].includes(fileExt);
+        const type = isVideo ? 'video' : 'image';
+
+        const newSubmission = {
+            id: postId,
+            board: board,
+            src: `uploads/${file.filename}`,
+            type: type
+        };
+
+        db.pendingPosts.push(newSubmission);
+        addedSubmissions.push(newSubmission);
+    });
+
+    writeDB(db);
+
+    res.json({ 
+        success: true, 
+        message: `Successfully submitted ${addedSubmissions.length} file(s) for admin approval.`
+    });
+});
+
 /* --- Admin Protected API Routes --- */
 
 // Create Board
@@ -81,14 +127,22 @@ app.post('/api/boards/delete', requireAuth, (req, res) => {
             if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
         });
 
+        // Clear references from pending queue as well if a board is deleted
+        const pendingToRemove = db.pendingPosts.filter(post => post.board === name);
+        pendingToRemove.forEach(post => {
+            const filePath = path.join(__dirname, post.src);
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        });
+
         // Orphan clean-up: clear out associated posts from json array
         db.posts = db.posts.filter(post => post.board !== name);
+        db.pendingPosts = db.pendingPosts.filter(post => post.board !== name);
         writeDB(db);
     }
     res.json({ success: true });
 });
 
-// Upload Multiple Content Items to a Board
+// Admin Route: Direct upload bypassing the approval queue
 app.post('/api/posts/upload', requireAuth, upload.array('media'), (req, res) => {
     const { board, customId } = req.body;
     if (!board || !req.files || req.files.length === 0) {
@@ -108,8 +162,8 @@ app.post('/api/posts/upload', requireAuth, upload.array('media'), (req, res) => 
             postId = `${postId}-${index + 1}`;
         }
 
-        // Prevent duplicate IDs
-        if (db.posts.some(p => p.id === postId)) {
+        // Prevent duplicate IDs across active and pending posts
+        if (db.posts.some(p => p.id === postId) || db.pendingPosts.some(p => p.id === postId)) {
             errors.push(`Post ID ${postId} already exists. Skipping file: ${file.originalname}`);
             const filePath = path.join(__dirname, 'uploads', file.filename);
             if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
@@ -144,7 +198,40 @@ app.post('/api/posts/upload', requireAuth, upload.array('media'), (req, res) => 
     });
 });
 
-// Delete Content Item
+// Admin Route: Process Action on Pending Item (Approve / Reject)
+app.post('/api/posts/approve', requireAuth, (req, res) => {
+    const { id, action } = req.body; // action can be 'approve' or 'reject'
+    const db = readDB();
+    const pendingIndex = db.pendingPosts.findIndex(p => p.id === String(id).trim());
+
+    if (pendingIndex === -1) {
+        return res.status(404).json({ error: 'Pending submission ID not found' });
+    }
+
+    const post = db.pendingPosts[pendingIndex];
+
+    if (action === 'approve') {
+        // Enforce unique ID safety switch
+        if (db.posts.some(p => p.id === post.id)) {
+            post.id = String(Math.floor(100000 + Math.random() * 900000));
+        }
+        db.posts.push(post);
+        db.pendingPosts.splice(pendingIndex, 1);
+    } else if (action === 'reject') {
+        const filePath = path.join(__dirname, post.src);
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
+        db.pendingPosts.splice(pendingIndex, 1);
+    } else {
+        return res.status(400).json({ error: 'Invalid process parameters.' });
+    }
+
+    writeDB(db);
+    res.json({ success: true, action: action });
+});
+
+// Delete Live Content Item
 app.post('/api/posts/delete', requireAuth, (req, res) => {
     const { id } = req.body;
     const db = readDB();
