@@ -495,7 +495,6 @@
             });
 
             xhr.onload = function () {
-                // Remove/hide the 100% progress bar box when upload routine completely processes
                 progBox.style.display = 'none';
 
                 if (xhr.status === 200) {
@@ -507,7 +506,22 @@
                     try {
                         const errData = JSON.parse(xhr.responseText);
                         statusMsg.style.color = '#ffffff';
-                        statusMsg.textContent = errData.error || 'Server error processing queue ingestion.';
+                        
+                        // Parse numbers out of server message to format into time strings (MM:SS)
+                        if (xhr.status === 429 && errData.error) {
+                            const match = errData.error.match(/\d+/);
+                            if (match) {
+                                const totalSeconds = parseInt(match[0], 10);
+                                const mins = Math.floor(totalSeconds / 60);
+                                const secs = totalSeconds % 60;
+                                const formattedTime = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+                                statusMsg.textContent = `Please wait ${formattedTime} until next upload`;
+                            } else {
+                                statusMsg.textContent = errData.error;
+                            }
+                        } else {
+                            statusMsg.textContent = errData.error || 'Server error processing queue ingestion.';
+                        }
                     } catch(e) {
                         statusMsg.style.color = '#ffffff';
                         statusMsg.textContent = 'Error processing upload parameters.';
