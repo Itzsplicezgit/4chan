@@ -3,441 +3,430 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Media Viewer Platform</title>
+    <title>Imageboard</title>
     <style>
+        /* Base 4chan dark mode color palette */
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
         }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: #111;
-            color: #fff;
-            min-height: 100vh;
+            background-color: #1d1f21;
+            color: #c5c8c6;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 13px;
+            padding: 5px;
         }
-        header {
-            background: #1a1a1a;
-            padding: 1rem 2rem;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #333;
+        a {
+            color: #81a2be;
+            text-decoration: none;
         }
-        h1 {
-            font-size: 1.5rem;
-            font-weight: 700;
+        a:hover {
+            color: #b2ccd6;
         }
-        .header-actions {
-            display: flex;
-            gap: 10px;
-            align-items: center;
+
+        /* Top Board List Navigation Bar */
+        .board-nav {
+            font-size: 12px;
+            border-bottom: 1px solid #282a2e;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+            color: #969896;
         }
-        select, button {
-            background: #2a2a2a;
-            color: #fff;
-            border: 1px solid #444;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            font-size: 0.9rem;
-            cursor: pointer;
-            outline: none;
-            transition: background 0.2s;
-        }
-        select:hover, button:hover {
-            background: #3a3a3a;
-        }
-        .submit-btn {
-            background: #0070f3;
-            border-color: #0070f3;
-        }
-        .submit-btn:hover {
-            background: #0051a8;
-        }
-        .container {
-            max-width: 1400px;
-            margin: 2rem auto;
-            padding: 0 1rem;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 1.5rem;
-        }
-        .card {
-            background: #1a1a1a;
-            border-radius: 12px;
-            overflow: hidden;
-            border: 1px solid #2a2a2a;
-            display: flex;
-            flex-direction: column;
-        }
-        .media-container {
-            position: relative;
-            width: 100%;
-            padding-top: 56.25%; /* 16:9 Aspect Ratio */
-            background: #000;
-        }
-        .media-container img, .media-container video {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-        .card-info {
-            padding: 1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #1a1a1a;
-            border-top: 1px solid #2a2a2a;
-        }
-        .post-id {
-            color: #888;
-            font-size: 0.85rem;
-            font-family: monospace;
-        }
-        /* User Upload Modal Styling */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-        .modal-content {
-            background: #1a1a1a;
-            padding: 2rem;
-            border-radius: 12px;
-            border: 1px solid #333;
-            width: 100%;
-            max-width: 500px;
-            position: relative;
-        }
-        .close-modal {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            color: #888;
-            cursor: pointer;
-        }
-        .close-modal:hover {
-            color: #fff;
-        }
-        .modal h2 {
-            margin-bottom: 1.5rem;
-            font-size: 1.3rem;
-        }
-        .form-group {
-            margin-bottom: 1.25rem;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-size: 0.9rem;
-            color: #ccc;
-        }
-        .form-group select, .form-group input[type="file"] {
-            width: 100%;
-            background: #2a2a2a;
-            border: 1px solid #444;
-            padding: 0.6rem;
-            border-radius: 6px;
-            color: #fff;
-        }
-        .progress-container {
-            display: none;
-            margin-top: 1rem;
-            background: #2a2a2a;
-            border-radius: 6px;
-            overflow: hidden;
-            height: 20px;
-            position: relative;
-        }
-        .progress-bar {
-            height: 100%;
-            background: #0070f3;
-            width: 0%;
-            transition: width 0.1s linear;
-        }
-        .progress-text {
-            position: absolute;
-            width: 100%;
-            text-align: center;
-            top: 0;
-            left: 0;
-            font-size: 0.8rem;
-            line-height: 20px;
+        .board-nav a {
+            padding: 0 4px;
             font-weight: bold;
         }
-        .status-message {
-            margin-top: 1rem;
-            font-size: 0.9rem;
-            text-align: center;
+        .board-nav .current-board {
+            color: #cc6666;
+            pointer-events: none;
         }
-        .empty-state {
-            grid-column: 1 / -1;
+
+        /* Center Banner Header Title Area */
+        .board-title-box {
             text-align: center;
-            padding: 4rem 2rem;
-            color: #666;
-            font-size: 1.1rem;
+            margin-bottom: 20px;
+        }
+        .board-title-box h1 {
+            color: #cc6666;
+            font-size: 24px;
+            letter-spacing: -2px;
+            margin-bottom: 4px;
+        }
+        .board-subtitle {
+            font-size: 12px;
+            color: #b294bb;
+            font-style: italic;
+        }
+
+        /* Traditional Post Form Frame */
+        .posting-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 25px;
+        }
+        .post-form {
+            background-color: #282a2e;
+            border: 1px solid #373b41;
+            border-collapse: collapse;
+            width: 100%;
+            max-width: 500px;
+        }
+        .form-row {
+            display: flex;
+            border-bottom: 1px solid #373b41;
+        }
+        .form-row:last-child {
+            border-bottom: none;
+        }
+        .form-label {
+            background-color: #1d1f21;
+            color: #b294bb;
+            padding: 5px;
+            font-weight: bold;
+            font-size: 12px;
+            width: 90px;
+            border-right: 1px solid #373b41;
+            display: flex;
+            align-items: center;
+        }
+        .form-input-cell {
+            padding: 4px;
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+        }
+        .form-input-cell input[type="file"] {
+            color: #c5c8c6;
+            font-size: 12px;
+        }
+        .submit-btn {
+            background-color: #373b41;
+            color: #c5c8c6;
+            border: 1px solid #5f89ac;
+            padding: 3px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .submit-btn:hover {
+            background-color: #282a2e;
+        }
+
+        /* Notification Banners */
+        .status-banner {
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        /* Imageboard Thread List Layout definitions */
+        .threads-feed {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .thread-container {
+            background-color: #282a2e;
+            border: 1px solid #373b41;
+            padding: 10px;
+            border-radius: 2px;
+            display: block;
+            overflow: hidden;
+        }
+
+        /* Post Block Architecture styling */
+        .post-header {
+            font-size: 12px;
+            margin-bottom: 8px;
+            color: #969896;
+        }
+        .poster-name {
+            color: #b5bd68;
+            font-weight: bold;
+        }
+        .post-id-tag {
+            color: #de935f;
+        }
+        .file-info {
+            font-size: 11px;
+            color: #969896;
+            margin-bottom: 8px;
+        }
+
+        /* Embedded Media Constraints */
+        .media-render-frame {
+            float: left;
+            margin: 0 20px 10px 0;
+            max-width: 250px;
+            max-height: 250px;
+            background-color: #1d1f21;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px dashed #373b41;
+        }
+        .media-render-frame img, .media-render-frame video {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        
+        /* Inline post text separation handling */
+        .post-comment-body {
+            color: #c5c8c6;
+            word-wrap: break-word;
+            line-height: 1.4;
+            padding-top: 2px;
+        }
+        .clear-float {
+            clear: both;
+        }
+        .empty-notice {
+            text-align: center;
+            color: #969896;
+            padding: 40px;
+            font-style: italic;
         }
     </style>
 </head>
 <body>
 
-    <header>
-        <h1>Media Platform</h1>
-        <div class="header-actions">
-            <select id="boardSelector">
-                <option value="">Loading Boards...</option>
-            </select>
-            <button class="submit-btn" id="openUploadBtn">Submit Media</button>
-        </div>
-    </header>
+    <!-- Target Top Navigation Dynamic Mount Link Root Node -->
+    <div class="board-nav" id="topBoardNavbar">[ Loading Boards... ]</div>
 
-    <div class="container">
-        <div class="grid" id="mediaGrid">
-            <!-- Dynamic Post Cards Render Here -->
-        </div>
+    <!-- Active Structural Board Title Presentation Header Info -->
+    <div class="board-title-box">
+        <h1 id="activeBoardTitle">Select a Board</h1>
+        <div class="board-subtitle" id="activeBoardSubtitle">Welcome to the network feed. Choose a room above to get started.</div>
     </div>
 
-    <!-- User Upload Submission Modal -->
-    <div class="modal" id="uploadModal">
-        <div class="modal-content">
-            <button class="close-modal" id="closeUploadBtn">&times;</button>
-            <h2>Submit Content for Approval</h2>
-            <form id="submissionForm">
-                <div class="form-group">
-                    <label for="submitBoardSelector">Select Destination Board</label>
-                    <select id="submitBoardSelector" required>
-                        <!-- Dynamic options loaded from database structural state -->
-                    </select>
+    <!-- Centralized File Input Form Block -->
+    <div class="posting-container" id="submissionFormWrapper" style="display: none;">
+        <form id="publicSubmissionForm" class="post-form">
+            <div class="form-row">
+                <div class="form-label">File</div>
+                <div class="form-input-cell">
+                    <input type="file" id="submissionMediaFile" accept="image/*,video/*" required>
                 </div>
-                <div class="form-group">
-                    <label for="mediaFiles">Choose Files (Images or Videos)</label>
-                    <input type="file" id="mediaFiles" accept="image/*,video/*" multiple required>
-                </div>
-                <button type="submit" class="submit-btn" style="width: 100%; margin-top: 0.5rem;">Upload Submissions</button>
-            </form>
-
-            <div class="progress-container" id="uploadProgressContainer">
-                <div class="progress-bar" id="uploadProgressBar"></div>
-                <div class="progress-text" id="uploadProgressText">0%</div>
             </div>
-            <div class="status-message" id="statusMessage"></div>
-        </div>
+            <div class="form-row">
+                <div class="form-label">Action</div>
+                <div class="form-input-cell">
+                    <button type="submit" class="submit-btn">Submit Post</button>
+                </div>
+            </div>
+        </form>
     </div>
+
+    <!-- Upload Progress Operations Alert Tracker -->
+    <div class="status-banner" id="clientStatusBanner"></div>
+
+    <!-- Primary Vertical Thread Display View Area -->
+    <div class="threads-feed" id="imageboardThreadsFeed"></div>
 
     <script>
-        let globalData = { boards: {}, posts: [] };
+        let runtimeStateCache = { boards: {}, posts: [] };
+        let activeBoardKey = "";
 
-        // Fetch initialization infrastructure state
-        async function loadContent() {
+        // Fetch initialization content maps off global state tracking routes
+        async function fetchSystemCatalog() {
             try {
-                const res = await fetch('/api/data');
-                if (!res.ok) throw new Error('Failed to retrieve application index dataset.');
-                globalData = await res.json();
+                const res = await fetch('/api/public/data');
+                if (!res.ok) throw new Error();
+                runtimeStateCache = await res.json();
                 
-                populateBoardSelectors();
-                renderActiveGrid();
+                generateNavbarLayout();
+                
+                // Automatically switch to the first available board index structure
+                const boardKeys = Object.keys(runtimeStateCache.boards);
+                if (boardKeys.length > 0) {
+                    switchActiveBoardView(boardKeys[0]);
+                } else {
+                    renderEmptyWorkspaceNotification("No categories active on this server yet.");
+                }
             } catch (err) {
-                console.error(err);
-                document.getElementById('mediaGrid').innerHTML = `<div class="empty-state" style="color: #ff4a4a;">Failed to load system feeds. Check your connection.</div>`;
+                renderEmptyWorkspaceNotification("Unable to reach backend network registries.");
             }
         }
 
-        // Keep dropdown controls up to date with live categories
-        function populateBoardSelectors() {
-            const boardSelector = document.getElementById('boardSelector');
-            const submitBoardSelector = document.getElementById('submitBoardSelector');
+        // Output complete link set strings inside top dynamic navigation headers
+        function generateNavbarLayout() {
+            const navbar = document.getElementById('topBoardNavbar');
+            navbar.innerHTML = '';
             
-            const currentSelection = boardSelector.value;
-            
-            boardSelector.innerHTML = '<option value="">All Boards</option>';
-            submitBoardSelector.innerHTML = '';
-
-            const boardKeys = Object.keys(globalData.boards);
-
-            if (boardKeys.length === 0) {
-                submitBoardSelector.innerHTML = '<option value="">No boards available</option>';
+            const keys = Object.keys(runtimeStateCache.boards);
+            if (keys.length === 0) {
+                navbar.textContent = '[ No Active Boards Found ]';
                 return;
             }
 
-            boardKeys.forEach(key => {
-                const board = globalData.boards[key];
+            navbar.appendChild(document.createTextNode('[ '));
+            keys.forEach((key, index) => {
+                const link = document.createElement('a');
+                link.href = "#" + key;
+                link.textContent = key;
+                link.id = `nav-link-${key}`;
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    switchActiveBoardView(key);
+                });
                 
-                const opt1 = document.createElement('option');
-                opt1.value = key;
-                opt1.textContent = board.title;
-                boardSelector.appendChild(opt1);
+                navbar.appendChild(link);
+                if (index < keys.length - 1) {
+                    navbar.appendChild(document.createTextNode(' / '));
+                }
+            });
+            navbar.appendChild(document.createTextNode(' ]'));
+        }
 
-                const opt2 = document.createElement('option');
-                opt2.value = key;
-                opt2.textContent = board.title;
-                submitBoardSelector.appendChild(opt2);
+        // Adjust global pointers and structural frame details during routing updates
+        function switchActiveBoardView(boardKey) {
+            if (!runtimeStateCache.boards[boardKey]) return;
+            
+            activeBoardKey = boardKey;
+            
+            // Toggle highlight styles across structural link anchors
+            Object.keys(runtimeStateCache.boards).forEach(k => {
+                const targetNode = document.getElementById(`nav-link-${k}`);
+                if (targetNode) {
+                    targetNode.className = (k === boardKey) ? 'current-board' : '';
+                }
             });
 
-            if (Object.keys(globalData.boards).includes(currentSelection)) {
-                boardSelector.value = currentSelection;
-            }
+            const currentBoard = runtimeStateCache.boards[boardKey];
+            document.getElementById('activeBoardTitle').textContent = `/${boardKey}/ - ${currentBoard.title}`;
+            document.getElementById('activeBoardSubtitle').textContent = `File Format Filter Scope: ${currentBoard.type.toUpperCase()}`;
+            
+            // Reveal upload control tools
+            document.getElementById('submissionFormWrapper').style.display = 'flex';
+            document.getElementById('clientStatusBanner').textContent = '';
+
+            renderFilterFeedView();
         }
 
-        // Render current live feed filtered down by category
-        function renderActiveGrid() {
-            const grid = document.getElementById('mediaGrid');
-            const targetBoard = document.getElementById('boardSelector').value;
-            grid.innerHTML = '';
+        // Filter and paint matching dataset nodes into vertical thread lists
+        function renderFilterFeedView() {
+            const feedContainer = document.getElementById('imageboardThreadsFeed');
+            feedContainer.innerHTML = '';
 
-            // Filter out items matching target board parameter
-            const filteredPosts = targetBoard 
-                ? globalData.posts.filter(p => p.board === targetBoard)
-                : globalData.posts;
+            // Pull only items paired to the chosen handle pointer location
+            const matchedItems = (runtimeStateCache.posts || []).filter(p => p.board === activeBoardKey);
 
-            if (filteredPosts.length === 0) {
-                grid.innerHTML = '<div class="empty-state">No active media elements found on this board.</div>';
+            if (matchedItems.length === 0) {
+                feedContainer.innerHTML = '<div class="empty-notice">There are no posts here. Be the first to start a thread.</div>';
                 return;
             }
 
-            // Generate clean structural cards
-            filteredPosts.forEach(post => {
-                const card = document.createElement('div');
-                card.className = 'card';
+            // Loop items in structural reverse order to place newest posts on top
+            for (let i = matchedItems.length - 1; i >= 0; i--) {
+                const post = matchedItems[i];
 
-                const mediaContainer = document.createElement('div');
-                mediaContainer.className = 'media-container';
+                const threadBox = document.createElement('div');
+                threadBox.className = 'thread-container';
+
+                const postHeader = document.createElement('div');
+                postHeader.className = 'post-header';
+                postHeader.innerHTML = `
+                    <span class="poster-name">Anonymous</span> 
+                    <span>No.</span> <span class="post-id-tag">${post.id}</span>
+                `;
+
+                // Handle string slice metrics extraction for readable track tags
+                const fileNameClean = post.src.split('/').pop();
+                const fileLinkBox = document.createElement('div');
+                fileLinkBox.className = 'file-info';
+                fileLinkBox.innerHTML = `File: <a href="${post.src}" target="_blank">${fileNameClean}</a> (${post.type})`;
+
+                const mediaBox = document.createElement('div');
+                mediaBox.className = 'media-render-frame';
 
                 if (post.type === 'video') {
                     const video = document.createElement('video');
                     video.src = post.src;
                     video.controls = true;
                     video.preload = 'metadata';
-                    mediaContainer.appendChild(video);
+                    mediaBox.appendChild(video);
                 } else {
                     const img = document.createElement('img');
                     img.src = post.src;
-                    img.loading = 'lazy';
-                    mediaContainer.appendChild(img);
+                    mediaBox.appendChild(img);
                 }
 
-                const cardInfo = document.createElement('div');
-                cardInfo.className = 'card-info';
-                
-                const idSpan = document.createElement('span');
-                idSpan.className = 'post-id';
-                idSpan.textContent = `ID: ${post.id}`;
-                
-                cardInfo.appendChild(idSpan);
-                card.appendChild(mediaContainer);
-                card.appendChild(cardInfo);
-                grid.appendChild(card);
-            });
+                const textComment = document.createElement('div');
+                textComment.className = 'post-comment-body';
+                textComment.textContent = `File asset content successfully mirrored live directly to collection grid board /${post.board}/ index position.`;
+
+                const layoutBreak = document.createElement('div');
+                layoutBreak.className = 'clear-float';
+
+                threadBox.appendChild(postHeader);
+                threadBox.appendChild(fileLinkBox);
+                threadBox.appendChild(mediaBox);
+                threadBox.appendChild(textComment);
+                threadBox.appendChild(layoutBreak);
+
+                feedContainer.appendChild(threadBox);
+            }
         }
 
-        // Modal visibility toggle state tracking listeners
-        const uploadModal = document.getElementById('uploadModal');
-        const openUploadBtn = document.getElementById('openUploadBtn');
-        const closeUploadBtn = document.getElementById('closeUploadBtn');
-        const submissionForm = document.getElementById('submissionForm');
-        const statusMessage = document.getElementById('statusMessage');
-        const progressContainer = document.getElementById('uploadProgressContainer');
-        const progressBar = document.getElementById('uploadProgressBar');
-        const progressText = document.getElementById('uploadProgressText');
+        // Standard dynamic fallbacks for error or blank states
+        function renderEmptyWorkspaceNotification(msgText) {
+            document.getElementById('imageboardThreadsFeed').innerHTML = `<div class="empty-notice">${msgText}</div>`;
+            document.getElementById('submissionFormWrapper').style.display = 'none';
+        }
 
-        openUploadBtn.addEventListener('click', () => {
-            uploadModal.style.display = 'flex';
-            statusMessage.textContent = '';
-            progressContainer.style.display = 'none';
-            submissionForm.reset();
-        });
-
-        closeUploadBtn.addEventListener('click', () => {
-            uploadModal.style.display = 'none';
-        });
-
-        window.addEventListener('click', (e) => {
-            if (e.target === uploadModal) uploadModal.style.display = 'none';
-        });
-
-        // Track custom submission process via AJAX XMLHttpRequest with live tracking bars
-        submissionForm.addEventListener('submit', (e) => {
+        // Form interception delivery transaction processing handlers
+        document.getElementById('publicSubmissionForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            const fileInput = document.getElementById('submissionMediaFile');
+            const statusBox = document.getElementById('clientStatusBanner');
 
-            const board = document.getElementById('submitBoardSelector').value;
-            const files = document.getElementById('mediaFiles').files;
-
-            if (!board) {
-                statusMessage.style.color = '#ff4a4a';
-                statusMessage.textContent = 'Please choose a target board asset category first.';
+            if (!activeBoardKey) {
+                alert("Target board context reference missing.");
+                return;
+            }
+            if (fileInput.files.length === 0) {
+                alert("Please pick a media file before submitting.");
                 return;
             }
 
-            const formData = new FormData();
-            formData.append('board', board);
-            for (let i = 0; i < files.length; i++) {
-                formData.append('media', files[i]);
-            }
+            const payloadData = new FormData();
+            payloadData.append('board', activeBoardKey);
+            payloadData.append('media', fileInput.files[0]);
 
-            statusMessage.textContent = '';
-            progressContainer.style.display = 'block';
-            progressBar.style.width = '0%';
-            progressText.textContent = '0%';
+            statusBox.style.color = '#81a2be';
+            statusBox.textContent = 'Uploading file asset to confirmation queue...';
 
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', '/api/posts/submit', true);
-
-            xhr.upload.addEventListener('progress', (event) => {
-                if (event.lengthComputable) {
-                    const percentComplete = Math.round((event.loaded / event.total) * 100);
-                    progressBar.style.width = percentComplete + '%';
-                    progressText.textContent = percentComplete + '%';
-                }
-            });
-
-            xhr.onload = function () {
-                if (xhr.status === 200) {
-                    const response = JSON.parse(xhr.responseText);
-                    statusMessage.style.color = '#4caf50';
-                    statusMessage.textContent = response.message || 'Submitted successfully!';
-                    submissionForm.reset();
-                    
-                    // Automatically wrap up operation close sequence after delay window
-                    setTimeout(() => {
-                        uploadModal.style.display = 'none';
-                    }, 2000);
+            try {
+                const res = await fetch('/api/public/upload', {
+                    method: 'POST',
+                    body: payloadData
+                });
+                
+                const outcome = await res.json();
+                if (res.ok && outcome.success) {
+                    statusBox.style.color = '#b5bd68';
+                    statusBox.textContent = outcome.message || 'File uploaded successfully and is awaiting admin approval.';
+                    document.getElementById('publicSubmissionForm').reset();
                 } else {
-                    const errorResponse = JSON.parse(xhr.responseText);
-                    statusMessage.style.color = '#ff4a4a';
-                    statusMessage.textContent = errorResponse.error || 'An operational upload failure has triggered.';
+                    statusBox.style.color = '#cc6666';
+                    statusBox.textContent = outcome.error || 'The server rejected this submission.';
                 }
-            };
-
-            xhr.onerror = function () {
-                statusMessage.style.color = '#ff4a4a';
-                statusMessage.textContent = 'Network connectivity processing exception encountered.';
-            };
-
-            xhr.send(formData);
+            } catch (err) {
+                statusBox.style.color = '#cc6666';
+                statusBox.textContent = 'Connection timeout running submission tasks.';
+            }
         });
 
-        // Event filter watcher hook routing setup
-        document.getElementById('boardSelector').addEventListener('change', renderActiveGrid);
-
-        // Initial system paint run step execution hook
-        loadContent();
+        // Fire initialization load sequences
+        fetchSystemCatalog();
     </script>
 </body>
 </html>
