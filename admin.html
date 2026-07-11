@@ -11,10 +11,10 @@
             padding: 0;
         }
         body {
-            background-color: #1d1f21;
-            color: #c5c8c6;
+            background-color: #121212;
+            color: #ffffff;
             font-family: Arial, Helvetica, sans-serif;
-            font-size: 13px;
+            font-size: 14px;
             padding: 20px;
         }
         .container {
@@ -22,24 +22,24 @@
             margin: 0 auto;
         }
         h1 {
-            color: #cc6666;
-            font-size: 24px;
-            letter-spacing: -1px;
+            color: #ffffff;
+            font-size: 26px;
+            letter-spacing: -0.5px;
             margin-bottom: 20px;
-            border-bottom: 1px solid #282a2e;
+            border-bottom: 2px solid #2d2d2d;
             padding-bottom: 10px;
         }
         h2 {
-            font-size: 14px;
-            color: #b294bb;
+            font-size: 16px;
+            color: #ffffff;
             margin-bottom: 15px;
             font-weight: bold;
         }
         .section-wrapper {
-            background-color: #282a2e;
-            border: 1px solid #373b41;
-            border-radius: 2px;
-            padding: 15px;
+            background-color: #1e1e1e;
+            border: 1px solid #2d2d2d;
+            border-radius: 6px;
+            padding: 20px;
             margin-bottom: 20px;
         }
         .grid-split {
@@ -51,43 +51,47 @@
             .grid-split { grid-template-columns: 1fr; }
         }
         .form-group {
-            margin-bottom: 12px;
+            margin-bottom: 15px;
         }
         label {
             display: block;
-            margin-bottom: 5px;
-            font-size: 11px;
-            color: #969896;
+            margin-bottom: 6px;
+            font-size: 12px;
+            color: #aaaaaa;
             font-weight: bold;
         }
         input, select, button {
             width: 100%;
-            background: #1d1f21;
-            border: 1px solid #373b41;
-            color: #c5c8c6;
-            padding: 6px;
-            border-radius: 2px;
-            font-size: 12px;
-            font-family: monospace;
+            background: #2d2d2d;
+            border: 1px solid #3d3d3d;
+            color: #ffffff;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 13px;
             outline: none;
         }
         input:focus, select:focus {
-            border-color: #5f89ac;
+            border-color: #ffffff;
         }
         button {
-            background: #373b41;
-            border-color: #5f89ac;
+            background: #ffffff;
+            color: #121212;
+            border: none;
             cursor: pointer;
             font-weight: bold;
-            transition: background 0.15s;
+            transition: opacity 0.15s;
             margin-top: 5px;
         }
-        button:hover { background: #1d1f21; color: #fff; }
-        .danger-btn {
-            border-color: #cc6666;
-            color: #cc6666;
+        button:hover { 
+            opacity: 0.9;
         }
-        .danger-btn:hover { background: #cc6666; color: #1d1f21; }
+        .danger-btn {
+            background: #cf6679;
+            color: #ffffff;
+        }
+        .danger-btn:hover { 
+            opacity: 0.9;
+        }
         .queue-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -95,9 +99,9 @@
             margin-top: 10px;
         }
         .queue-card {
-            background: #1d1f21;
-            border: 1px solid #373b41;
-            border-radius: 2px;
+            background: #2d2d2d;
+            border: 1px solid #3d3d3d;
+            border-radius: 4px;
             overflow: hidden;
             display: flex;
             flex-direction: column;
@@ -106,9 +110,9 @@
         .queue-media {
             width: 100%;
             height: 150px;
-            background: #151515;
+            background: #121212;
             position: relative;
-            border-bottom: 1px dashed #373b41;
+            border-bottom: 1px solid #3d3d3d;
         }
         .queue-media img, .queue-media video {
             width: 100%;
@@ -116,35 +120,35 @@
             object-fit: contain;
         }
         .queue-meta {
-            padding: 8px;
-            font-size: 11px;
+            padding: 10px;
+            font-size: 12px;
             display: flex;
             flex-direction: column;
             gap: 4px;
-            color: #969896;
+            color: #aaaaaa;
         }
         .meta-target {
-            color: #81a2be;
+            color: #ffffff;
             font-weight: bold;
         }
         .queue-actions {
             display: flex;
             gap: 6px;
-            padding: 0 8px 8px;
+            padding: 0 10px 10px;
             margin-top: auto;
         }
         .queue-actions button {
             margin-top: 0;
-            padding: 4px;
-            font-size: 11px;
+            padding: 6px;
+            font-size: 12px;
         }
         .queue-count-badge {
-            background: #1d1f21;
-            color: #de935f;
+            background: #2d2d2d;
+            color: #ffffff;
             padding: 2px 8px;
-            border: 1px solid #373b41;
-            border-radius: 2px;
-            font-size: 11px;
+            border: 1px solid #3d3d3d;
+            border-radius: 4px;
+            font-size: 12px;
             font-weight: bold;
             margin-left: 10px;
             display: inline-block;
@@ -153,16 +157,16 @@
         .progress-box {
             display: none;
             margin-top: 12px;
-            background: #1d1f21;
-            border: 1px solid #373b41;
-            border-radius: 2px;
+            background: #2d2d2d;
+            border: 1px solid #3d3d3d;
+            border-radius: 4px;
             overflow: hidden;
-            height: 18px;
+            height: 20px;
             position: relative;
         }
         .progress-fill {
             height: 100%;
-            background: #5f89ac;
+            background: #ffffff;
             width: 0%;
         }
         .progress-indicator-text {
@@ -171,14 +175,14 @@
             text-align: center;
             top: 0;
             left: 0;
-            font-size: 11px;
-            line-height: 16px;
+            font-size: 12px;
+            line-height: 18px;
             font-weight: bold;
-            color: #fff;
+            color: #121212;
         }
         .status-msg {
             margin-top: 12px;
-            font-size: 12px;
+            font-size: 13px;
             white-space: pre-line;
             text-align: center;
             font-weight: bold;
@@ -206,7 +210,7 @@
                     Pending Submissions Queue 
                     <span class="queue-count-badge" id="queueTotalCount">Total: 0</span>
                 </h2>
-                <div id="queueStatusMessage" style="color: #969896; font-style: italic; margin-bottom: 8px; font-size: 11px;"></div>
+                <div id="queueStatusMessage" style="color: #aaaaaa; font-style: italic; margin-bottom: 8px; font-size: 12px;"></div>
                 <div class="queue-grid" id="approvalQueueGrid">
                 </div>
             </div>
@@ -268,7 +272,7 @@
                     </div>
                     <div class="form-group">
                         <label for="directMediaFiles">Select Files for Instant Publication</label>
-                        <input type="file" id="directMediaFiles" style="color:#c5c8c6; font-size:11px;" accept="image/*,video/*" multiple required>
+                        <input type="file" id="directMediaFiles" style="color:#ffffff; font-size:12px;" accept="image/*,video/*" multiple required>
                     </div>
                     <button type="submit">Publish Live Instantly</button>
                 </form>
@@ -542,7 +546,7 @@
             const progText = document.getElementById('adminUploadProgressText');
 
             if (!board || files.length === 0) {
-                statusMsg.style.color = '#cc6666';
+                statusMsg.style.color = '#cf6679';
                 statusMsg.textContent = 'Missing core upload assets.';
                 return;
             }
@@ -583,7 +587,7 @@
                     synchroniseState();
                 } else {
                     const response = JSON.parse(xhr.responseText);
-                    statusMsg.style.color = '#cc6666';
+                    statusMsg.style.color = '#cf6679';
                     statusMsg.textContent = response.error || 'Server error encountered processing bypassing routine.';
                 }
             };
@@ -613,11 +617,11 @@
                     document.getElementById('deletePostForm').reset();
                     synchroniseState();
                 } else {
-                    msgNode.style.color = '#cc6666';
+                    msgNode.style.color = '#cf6679';
                     msgNode.textContent = data.error || 'Post removal failed.';
                 }
             } catch (err) {
-                msgNode.style.color = '#cc6666';
+                msgNode.style.color = '#cf6679';
                 msgNode.textContent = 'Network execution interrupt during post removal.';
             }
         });
