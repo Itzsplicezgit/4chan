@@ -5,58 +5,59 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Imageboard</title>
     <style>
-        /* Base 4chan dark mode color palette */
+        /* Restyled Deep Dark Theme with Large White Text */
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
         }
         body {
-            background-color: #1d1f21;
-            color: #c5c8c6;
+            background-color: #000000;
+            color: #ffffff;
             font-family: Arial, Helvetica, sans-serif;
-            font-size: 13px;
-            padding: 5px;
+            font-size: 16px;
+            padding: 15px;
         }
         a {
-            color: #81a2be;
+            color: #38b6ff;
             text-decoration: none;
         }
         a:hover {
-            color: #b2ccd6;
+            color: #ffffff;
+            text-decoration: underline;
         }
 
         /* Top Board List Navigation Bar */
         .board-nav {
-            font-size: 12px;
-            border-bottom: 1px solid #282a2e;
-            padding-bottom: 5px;
-            margin-bottom: 15px;
-            color: #969896;
+            font-size: 14px;
+            border-bottom: 2px solid #222222;
+            padding-bottom: 10px;
+            margin-bottom: 25px;
+            color: #888888;
         }
         .board-nav a {
-            padding: 0 4px;
+            padding: 0 6px;
             font-weight: bold;
         }
         .board-nav .current-board {
-            color: #cc6666;
+            color: #ff4a4a;
             pointer-events: none;
         }
 
         /* Center Banner Header Title Area */
         .board-title-box {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
         }
         .board-title-box h1 {
-            color: #cc6666;
-            font-size: 24px;
-            letter-spacing: -2px;
-            margin-bottom: 4px;
+            color: #ffffff;
+            font-size: 32px;
+            letter-spacing: -1px;
+            margin-bottom: 8px;
         }
         .board-subtitle {
-            font-size: 12px;
-            color: #b294bb;
+            font-size: 16px;
+            color: #aaaaaa;
             font-style: italic;
         }
 
@@ -64,62 +65,70 @@
         .posting-container {
             display: flex;
             justify-content: center;
-            margin-bottom: 25px;
+            margin-bottom: 35px;
         }
         .post-form {
-            background-color: #282a2e;
-            border: 1px solid #373b41;
+            background-color: #111111;
+            border: 2px solid #333333;
             border-collapse: collapse;
             width: 100%;
-            max-width: 500px;
+            max-width: 600px;
         }
         .form-row {
             display: flex;
-            border-bottom: 1px solid #373b41;
+            border-bottom: 2px solid #333333;
         }
         .form-row:last-child {
             border-bottom: none;
         }
         .form-label {
-            background-color: #1d1f21;
-            color: #b294bb;
-            padding: 5px;
+            background-color: #050505;
+            color: #ffffff;
+            padding: 10px;
             font-weight: bold;
-            font-size: 12px;
-            width: 90px;
-            border-right: 1px solid #373b41;
+            font-size: 14px;
+            width: 110px;
+            border-right: 2px solid #333333;
             display: flex;
             align-items: center;
         }
         .form-input-cell {
-            padding: 4px;
+            padding: 8px;
             flex-grow: 1;
             display: flex;
-            align-items: center;
+            flex-direction: column;
+            justify-content: center;
+            gap: 4px;
         }
         .form-input-cell input[type="file"] {
-            color: #c5c8c6;
+            color: #ffffff;
+            font-size: 14px;
+        }
+        .upload-limits-notice {
             font-size: 12px;
+            color: #888888;
         }
         .submit-btn {
-            background-color: #373b41;
-            color: #c5c8c6;
-            border: 1px solid #5f89ac;
-            padding: 3px 10px;
+            background-color: #222222;
+            color: #ffffff;
+            border: 2px solid #444444;
+            padding: 6px 16px;
             cursor: pointer;
-            font-size: 12px;
+            font-size: 14px;
             font-weight: bold;
         }
         .submit-btn:hover {
-            background-color: #282a2e;
+            background-color: #ffffff;
+            color: #000000;
+            border-color: #ffffff;
         }
 
         /* Notification Banners */
         .status-banner {
             text-align: center;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             font-weight: bold;
-            font-size: 12px;
+            font-size: 14px;
         }
 
         /* Imageboard Thread List Layout definitions */
@@ -128,47 +137,47 @@
             margin: 0 auto;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 20px;
         }
         .thread-container {
-            background-color: #282a2e;
-            border: 1px solid #373b41;
-            padding: 10px;
-            border-radius: 2px;
+            background-color: #111111;
+            border: 2px solid #333333;
+            padding: 15px;
+            border-radius: 4px;
             display: block;
             overflow: hidden;
         }
 
         /* Post Block Architecture styling */
         .post-header {
-            font-size: 12px;
-            margin-bottom: 8px;
-            color: #969896;
+            font-size: 14px;
+            margin-bottom: 12px;
+            color: #aaaaaa;
         }
         .poster-name {
-            color: #b5bd68;
+            color: #55ff55;
             font-weight: bold;
         }
         .post-id-tag {
-            color: #de935f;
+            color: #ffaa00;
         }
         .file-info {
-            font-size: 11px;
-            color: #969896;
-            margin-bottom: 8px;
+            font-size: 13px;
+            color: #aaaaaa;
+            margin-bottom: 12px;
         }
 
         /* Embedded Media Constraints */
         .media-render-frame {
             float: left;
-            margin: 0 20px 10px 0;
-            max-width: 250px;
-            max-height: 250px;
-            background-color: #1d1f21;
+            margin: 0 25px 15px 0;
+            width: 250px;
+            height: 250px;
+            background-color: #000000;
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 1px dashed #373b41;
+            border: 2px dashed #444444;
         }
         .media-render-frame img, .media-render-frame video {
             max-width: 100%;
@@ -179,19 +188,20 @@
         
         /* Inline post text separation handling */
         .post-comment-body {
-            color: #c5c8c6;
+            color: #ffffff;
             word-wrap: break-word;
-            line-height: 1.4;
-            padding-top: 2px;
+            line-height: 1.5;
+            padding-top: 4px;
         }
         .clear-float {
             clear: both;
         }
         .empty-notice {
             text-align: center;
-            color: #969896;
-            padding: 40px;
+            color: #aaaaaa;
+            padding: 50px;
             font-style: italic;
+            font-size: 18px;
         }
     </style>
 </head>
@@ -202,7 +212,7 @@
 
     <!-- Active Structural Board Title Presentation Header Info -->
     <div class="board-title-box">
-        <h1 id="activeBoardTitle">Select a Board</h1>
+        <h1 id="activeBoardTitle">Select a board to browse or suggest the creation of one</h1>
         <div class="board-subtitle" id="activeBoardSubtitle">Welcome to the network feed. Choose a room above to get started.</div>
     </div>
 
@@ -213,6 +223,7 @@
                 <div class="form-label">File</div>
                 <div class="form-input-cell">
                     <input type="file" id="submissionMediaFile" accept="image/*,video/*" required>
+                    <span class="upload-limits-notice">Max upload size: 20MB. A moderator must approve uploaded media to prevent spam.</span>
                 </div>
             </div>
             <div class="form-row">
@@ -243,11 +254,9 @@
                 
                 generateNavbarLayout();
                 
-                // Automatically switch to the first available board index structure
+                // Leave on default landing notice state instead of auto-selecting board structural indices
                 const boardKeys = Object.keys(runtimeStateCache.boards);
-                if (boardKeys.length > 0) {
-                    switchActiveBoardView(boardKeys[0]);
-                } else {
+                if (boardKeys.length === 0) {
                     renderEmptyWorkspaceNotification("No categories active on this server yet.");
                 }
             } catch (err) {
@@ -401,7 +410,7 @@
             payloadData.append('board', activeBoardKey);
             payloadData.append('media', fileInput.files[0]);
 
-            statusBox.style.color = '#81a2be';
+            statusBox.style.color = '#38b6ff';
             statusBox.textContent = 'Uploading file asset to confirmation queue...';
 
             try {
@@ -412,15 +421,15 @@
                 
                 const outcome = await res.json();
                 if (res.ok && outcome.success) {
-                    statusBox.style.color = '#b5bd68';
+                    statusBox.style.color = '#55ff55';
                     statusBox.textContent = outcome.message || 'File uploaded successfully and is awaiting admin approval.';
                     document.getElementById('publicSubmissionForm').reset();
                 } else {
-                    statusBox.style.color = '#cc6666';
+                    statusBox.style.color = '#ff4a4a';
                     statusBox.textContent = outcome.error || 'The server rejected this submission.';
                 }
             } catch (err) {
-                statusBox.style.color = '#cc6666';
+                statusBox.style.color = '#ff4a4a';
                 statusBox.textContent = 'Connection timeout running submission tasks.';
             }
         });
