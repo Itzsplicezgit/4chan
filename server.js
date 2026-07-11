@@ -10,8 +10,7 @@ const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = 'fish';
 
 app.use(express.json());
-app.use(express.static('public'));
-app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Ensure storage paths exist
 const DATA_FILE = path.join(__dirname, 'data.json');
@@ -32,7 +31,6 @@ let db = {
 if (fs.existsSync(DATA_FILE)) {
     try {
         db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-        // Safety initialization checks
         if (!db.boards) db.boards = {};
         if (!db.posts) db.posts = [];
         if (!db.pendingPosts) db.pendingPosts = [];
@@ -68,7 +66,6 @@ function getMediaType(filename) {
 
 // ================= ADMIN VALIDATION MIDDLEWARE =================
 function requireAdminAuth(req, res, next) {
-    // Check both standard body parameters and explicit request headers
     const providedPassword = req.headers['x-admin-password'] || req.body.password;
     
     if (!providedPassword || providedPassword !== ADMIN_PASSWORD) {
@@ -77,9 +74,25 @@ function requireAdminAuth(req, res, next) {
     next();
 }
 
-// ================= PUBLIC ROUTES =================
+// ================= STATIC PAGE ROOT ROUTING =================
 
-// Public data fetch route (Strips pending post details from unauthenticated public feeds)
+// Serve index.html from root folder
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Serve admin.html from root folder
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+// Fallback for admin.html extension URL
+app.get('/admin.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+// ================= PUBLIC API ROUTES =================
+
 app.get('/api/public/data', (req, res) => {
     res.json({
         boards: db.boards,
@@ -87,7 +100,6 @@ app.get('/api/public/data', (req, res) => {
     });
 });
 
-// User Public Submission Route
 app.post('/api/public/upload', upload.single('media'), (req, res) => {
     const { board } = req.body;
     if (!board || !db.boards[board]) {
@@ -114,12 +126,10 @@ app.post('/api/public/upload', upload.single('media'), (req, res) => {
 
 // ================= AUTHENTICATED ADMIN ROUTES =================
 
-// Secured master database fetch route
 app.get('/api/data', requireAdminAuth, (req, res) => {
     res.json(db);
 });
 
-// Queue Process Handler (Approve / Reject Action)
 app.post('/api/posts/approve', requireAdminAuth, (req, res) => {
     const { id, action } = req.body;
     
@@ -129,17 +139,13 @@ app.post('/api/posts/approve', requireAdminAuth, (req, res) => {
     }
 
     const targetItem = db.pendingPosts[itemIndex];
-
-    // Remove item completely from the pending queue array
     db.pendingPosts.splice(itemIndex, 1);
 
     if (action === 'approve') {
-        // Transfer historical item directly into the live display list
         db.posts.push(targetItem);
         saveDatabase();
         return res.json({ success: true, message: 'Item approved and deployed to live feed.' });
     } else {
-        // Action is rejection: wipe file tracking off storage systems
         const absolutePath = path.join(__dirname, targetItem.src);
         if (fs.existsSync(absolutePath)) {
             fs.unlinkSync(absolutePath);
@@ -149,7 +155,6 @@ app.post('/api/posts/approve', requireAdminAuth, (req, res) => {
     }
 });
 
-// Deploy Board Category
 app.post('/api/boards/create', requireAdminAuth, (req, res) => {
     const { name, title, type } = req.body;
     const cleanName = name.trim().toLowerCase().replace(/\s+/g, '');
@@ -170,7 +175,6 @@ app.post('/api/boards/create', requireAdminAuth, (req, res) => {
     res.json({ success: true, message: 'New asset board category successfully created.' });
 });
 
-// Decommission Board Category
 app.post('/api/boards/delete', requireAdminAuth, (req, res) => {
     const { name } = req.body;
 
@@ -178,7 +182,6 @@ app.post('/api/boards/delete', requireAdminAuth, (req, res) => {
         return res.status(400).json({ success: false, error: 'Target destination board does not exist.' });
     }
 
-    // Erase all live posts associated with this board, cleaning up physical files
     const remainingPosts = [];
     db.posts.forEach(post => {
         if (post.board === name) {
@@ -190,7 +193,6 @@ app.post('/api/boards/delete', requireAdminAuth, (req, res) => {
     });
     db.posts = remainingPosts;
 
-    // Erase all pending items associated with this board, cleaning up physical files
     const remainingPending = [];
     db.pendingPosts.forEach(post => {
         if (post.board === name) {
@@ -202,14 +204,12 @@ app.post('/api/boards/delete', requireAdminAuth, (req, res) => {
     });
     db.pendingPosts = remainingPending;
 
-    // Drop tracking reference record object completely
     delete db.boards[name];
     saveDatabase();
 
     res.json({ success: true, message: 'Board category and all containing files deleted.' });
 });
 
-// Direct Fast Upload Bypass Route (Supports multiple files simultaneously)
 app.post('/api/posts/upload', requireAdminAuth, upload.array('media'), (req, res) => {
     const { board, customId } = req.body;
 
@@ -225,10 +225,8 @@ app.post('/api/posts/upload', requireAdminAuth, upload.array('media'), (req, res
     const warnings = [];
 
     req.files.forEach((file, index) => {
-        // If a custom ID is provided, use it for the first file only; generate unique ones otherwise
         const definitiveId = (customId && index === 0) ? String(customId) : String(Date.now() + index + Math.floor(Math.random() * 100));
 
-        // Check for duplicates inside the live tracking space
         const duplicateCheck = db.posts.some(p => p.id === definitiveId);
         if (duplicateCheck) {
             warnings.push(`File "${file.originalname}" skipped because ID "${definitiveId}" is already taken.`);
@@ -253,7 +251,6 @@ app.post('/api/posts/upload', requireAdminAuth, upload.array('media'), (req, res
     });
 });
 
-// Wipe Active Item From Server Live Lists Entirely
 app.post('/api/posts/delete', requireAdminAuth, (req, res) => {
     const { id } = req.body;
 
@@ -264,7 +261,6 @@ app.post('/api/posts/delete', requireAdminAuth, (req, res) => {
 
     const targetPost = db.posts[itemIndex];
     
-    // Wipe track file structure references off the operating disk
     const absolutePath = path.join(__dirname, targetPost.src);
     if (fs.existsSync(absolutePath)) {
         fs.unlinkSync(absolutePath);
