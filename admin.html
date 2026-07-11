@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control Panel - Admin Platform</title>
     <style>
-        /* Shared imageboard dark mode color scheme palette */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -89,8 +88,6 @@
             color: #cc6666;
         }
         .danger-btn:hover { background: #cc6666; color: #1d1f21; }
-        
-        /* Queue System Section Styling Map */
         .queue-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -153,8 +150,6 @@
             display: inline-block;
             vertical-align: middle;
         }
-
-        /* Upload Operations Indicators */
         .progress-box {
             display: none;
             margin-top: 12px;
@@ -195,7 +190,6 @@
     <div class="container">
         <h1>System Control Panel</h1>
 
-        <!-- Password Validation Form Header (Value wiped cleanly) -->
         <div class="section-wrapper" id="authGate">
             <h2>System Authentication</h2>
             <div class="form-group">
@@ -207,7 +201,6 @@
 
         <div id="controlDashboard" style="display: none;">
             
-            <!-- User Upload Submissions Queue Block (Isolated top 5 pagination) -->
             <div class="section-wrapper">
                 <h2>
                     Pending Submissions Queue 
@@ -215,13 +208,11 @@
                 </h2>
                 <div id="queueStatusMessage" style="color: #969896; font-style: italic; margin-bottom: 8px; font-size: 11px;"></div>
                 <div class="queue-grid" id="approvalQueueGrid">
-                    <!-- Top 5 unapproved items layer dynamically here -->
                 </div>
             </div>
 
             <div class="grid-split">
                 
-                <!-- Create Category Board Panel -->
                 <div class="section-wrapper">
                     <h2>Create Asset Category Board</h2>
                     <form id="createBoardForm">
@@ -245,7 +236,6 @@
                     </form>
                 </div>
 
-                <!-- Wipe Board Panel -->
                 <div class="section-wrapper">
                     <h2>Decommission Board Category</h2>
                     <form id="deleteBoardForm">
@@ -261,7 +251,6 @@
 
             </div>
 
-            <!-- Direct Instant Upload Bypass Panel -->
             <div class="section-wrapper" style="margin-top: 2rem;">
                 <h2>Direct Fast Upload (Bypass Queue System)</h2>
                 <form id="adminDirectUploadForm">
@@ -291,7 +280,6 @@
                 <div class="status-msg" id="adminUploadStatusMsg"></div>
             </div>
 
-            <!-- Existing Delete Live Post Panel View -->
             <div class="section-wrapper">
                 <h2>Delete Active Content From Feed</h2>
                 <form id="deletePostForm">
@@ -310,12 +298,10 @@
     <script>
         let serverCache = { boards: {}, posts: [], pendingPosts: [] };
 
-        // Central authentication header setup mapping function
         function getAuthPassword() {
             return document.getElementById('adminPassword').value;
         }
 
-        // Test credentials securely against backend and unpack dashboards
         async function runInitialValidation() {
             const currentPass = getAuthPassword();
             if (!currentPass) {
@@ -323,7 +309,6 @@
                 return;
             }
             try {
-                // Pass secure header validation to prevent unauthenticated database parsing
                 const res = await fetch('/api/data', {
                     headers: { 'x-admin-password': currentPass }
                 });
@@ -336,7 +321,6 @@
                 
                 serverCache = await res.json();
                 
-                // Hide gateway shield and display the runtime layouts
                 document.getElementById('authGate').style.display = 'none';
                 document.getElementById('controlDashboard').style.display = 'block';
                 
@@ -346,7 +330,6 @@
             }
         }
 
-        // Fetch refreshed runtime state from the server database with active headers
         async function synchroniseState() {
             try {
                 const res = await fetch('/api/data', {
@@ -361,13 +344,11 @@
             }
         }
 
-        // Process dropdown adjustments and refresh structural elements
         function refreshDashboardViews() {
             populateSelectorDropdowns();
             renderProgressiveQueueGrid();
         }
 
-        // Update drop-down select option lists across structural nodes
         function populateSelectorDropdowns() {
             const delSelector = document.getElementById('deleteBoardSelector');
             const uploadSelector = document.getElementById('uploadBoardSelector');
@@ -398,7 +379,6 @@
             if (boardsList.includes(savedUpVal)) uploadSelector.value = savedUpVal;
         }
 
-        // Top-5 Progressive Queue Engine: Eliminates DOM lag by slicing the render window
         function renderProgressiveQueueGrid() {
             const grid = document.getElementById('approvalQueueGrid');
             const totalCountBadge = document.getElementById('queueTotalCount');
@@ -416,7 +396,6 @@
 
             statusTxt.textContent = `Displaying the top 5 oldest submissions to avoid page lag.`;
 
-            // Pull only the top 5 oldest items from the beginning of the queue array
             const visibleSlice = pendingList.slice(0, 5);
 
             visibleSlice.forEach(item => {
@@ -467,7 +446,6 @@
             });
         }
 
-        // Send Approval or Rejection instructions back to the application server
         async function processQueueAction(postId, actionType) {
             try {
                 const response = await fetch('/api/posts/approve', {
@@ -481,7 +459,6 @@
 
                 const outcome = await response.json();
                 if (response.ok && outcome.success) {
-                    // Update client instance dynamically and refresh layout view slices immediately
                     serverCache.pendingPosts = serverCache.pendingPosts.filter(p => p.id !== String(postId));
                     
                     if (actionType === 'approve') {
@@ -497,7 +474,6 @@
             }
         }
 
-        // Deploy new Board structures
         document.getElementById('createBoardForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const name = document.getElementById('boardName').value.trim();
@@ -526,7 +502,6 @@
             }
         });
 
-        // Delete structural Board category targets
         document.getElementById('deleteBoardForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const name = document.getElementById('deleteBoardSelector').value;
@@ -555,7 +530,6 @@
             }
         });
 
-        // Direct Fast-Upload Controller Execution Task Hook (Unconstrained sizes)
         document.getElementById('adminDirectUploadForm').addEventListener('submit', (e) => {
             e.preventDefault();
 
@@ -588,7 +562,6 @@
             const xhr = new XMLHttpRequest();
             xhr.open('POST', '/api/posts/upload', true);
             
-            // Set required master administrative authorization verification tokens
             xhr.setRequestHeader('x-admin-password', getAuthPassword());
 
             xhr.upload.addEventListener('progress', (event) => {
@@ -618,7 +591,6 @@
             xhr.send(formData);
         });
 
-        // Clear active items off system registers completely
         document.getElementById('deletePostForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = document.getElementById('deletePostId').value.trim();
@@ -650,7 +622,6 @@
             }
         });
 
-        // Establish session event wire hooks
         document.getElementById('verifyCredentialsBtn').addEventListener('click', runInitialValidation);
     </script>
 </body>
