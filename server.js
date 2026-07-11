@@ -27,6 +27,9 @@ let db = {
     pendingPosts: []
 };
 
+// In-memory tracker for non-admin video upload timestamps by IP
+const videoUploadTimestamps = {};
+
 // Load existing data on startup
 if (fs.existsSync(DATA_FILE)) {
     try {
@@ -110,11 +113,34 @@ app.post('/api/public/upload', upload.single('media'), (req, res) => {
         return res.status(400).json({ success: false, error: 'No media file asset provided.' });
     }
 
+    const mediaType = getMediaType(req.file.filename);
+
+    // Track user IP and enforce 5-minute video limit
+    if (mediaType === 'video') {
+        const userIp = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+        const now = Date.now();
+        const cooldownMs = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+        if (videoUploadTimestamps[userIp]) {
+            const timePassed = now - videoUploadTimestamps[userIp];
+            if (timePassed < cooldownMs) {
+                const timeLeftSec = Math.ceil((cooldownMs - timePassed) / 1000);
+                fs.unlinkSync(req.file.path); // Delete the uploaded file immediately
+                return res.status(429).json({ 
+                    success: false, 
+                    error: `Rate limit exceeded. You can upload another video in ${timeLeftSec} seconds.` 
+                });
+            }
+        }
+        // Update the timestamp for successful entries
+        videoUploadTimestamps[userIp] = now;
+    }
+
     const newPending = {
         id: String(Date.now()),
         board: board,
         src: `/uploads/${req.file.filename}`,
-        type: getMediaType(req.file.filename)
+        type: mediaType
     };
 
     db.pendingPosts.push(newPending);
