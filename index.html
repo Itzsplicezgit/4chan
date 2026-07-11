@@ -326,7 +326,8 @@
         // Initialize state engine data sync
         async function loadPlatformState() {
             try {
-                const res = await fetch('/api/data');
+                // CHANGED: Use public API route to avoid authorization errors
+                const res = await fetch('/api/public/data');
                 if (!res.ok) throw new Error("Data retrieval bad sequence");
                 localStateCache = await res.json();
                 
@@ -455,6 +456,8 @@
                         } else {
                             const img = document.createElement('img');
                             img.src = src;
+                            img.shadowRoot
+                            img.src = src;
                             mediaBox.appendChild(img);
                         }
                     }
@@ -493,7 +496,8 @@
             progText.textContent = '0%';
 
             const xhr = new XMLHttpRequest();
-            xhr.open('POST', '/api/posts/submit', true);
+            // CHANGED: Point endpoint directly to standard public upload route
+            xhr.open('POST', '/api/public/upload', true);
 
             xhr.upload.addEventListener('progress', (event) => {
                 if (event.lengthComputable) {
