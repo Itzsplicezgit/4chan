@@ -164,12 +164,18 @@
             opacity: 0.9;
         }
 
-        /* Interactive Feed View Layout */
+        /* Interactive Feed View Layout - Set to 4 per row */
         .feed-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 20px;
             margin-top: 15px;
+        }
+        @media (max-width: 1024px) {
+            .feed-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 480px) {
+            .feed-grid { grid-template-columns: 1fr; }
         }
         
         /* Dynamic Placeholder to preserve scroll tracking layout height when culled */
@@ -397,9 +403,10 @@
             
             mediaIntersectionObserver.disconnect();
 
+            // Filters the data array and reverses it so that the newest additions appear first
             const targetItems = localStateCache.posts.filter(post => {
                 return !activeBoardFilter || post.board === activeBoardFilter;
-            });
+            }).reverse();
 
             if (targetItems.length === 0) {
                 grid.innerHTML = '<div style="color:#aaaaaa; font-style:italic; padding:10px; grid-column:1/-1;">No published assets matches this feed context.</div>';
