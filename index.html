@@ -163,6 +163,13 @@
         button[type="submit"]:hover { 
             opacity: 0.9;
         }
+        button[type="submit"]:disabled {
+            background: #2d2d2d;
+            color: #aaaaaa;
+            border: 1px solid #3d3d3d;
+            cursor: not-allowed;
+            opacity: 1;
+        }
 
         /* Interactive Feed View Layout - Set to 4 per row */
         .feed-grid {
@@ -295,7 +302,7 @@
                                 <div class="file-chosen-text" id="fileChosenFeedback">No file selected</div>
                             </div>
                         </div>
-                        <button type="submit">Submit to Moderation Queue</button>
+                        <button type="submit" id="submitFormButton">Submit to Moderation Queue</button>
                     </form>
 
                     <div class="progress-box" id="submissionProgressBox">
@@ -322,6 +329,8 @@
         let localStateCache = { boards: {}, posts: [] };
         let activeBoardFilter = null;
         let elementsToObserve = [];
+        let cooldownInterval = null;
+        const COOLDOWN_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
 
         // Track file inputs to update custom text interface values
         document.getElementById('publicMediaFile').addEventListener('change', function(e) {
@@ -329,8 +338,55 @@
             document.getElementById('fileChosenFeedback').textContent = fileName;
         });
 
+        // Formats milliseconds into a readable MM:SS layout string
+        function formatTimeLeft(ms) {
+            const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+            const mins = Math.floor(totalSeconds / 60);
+            const secs = totalSeconds % 60;
+            return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        // Monitors, disables inputs, and runs the client timer loop
+        function checkClientCooldown() {
+            const lastUploadTime = localStorage.getItem('darkchan_last_upload');
+            const statusMsg = document.getElementById('submissionStatusMsg');
+            const submitBtn = document.getElementById('submitFormButton');
+            
+            if (!lastUploadTime) return;
+
+            const timePassed = Date.now() - parseInt(lastUploadTime, 10);
+            if (timePassed < COOLDOWN_DURATION) {
+                submitBtn.disabled = true;
+                
+                if (cooldownInterval) clearInterval(cooldownInterval);
+                
+                cooldownInterval = setInterval(() => {
+                    const currentPassed = Date.now() - parseInt(lastUploadTime, 10);
+                    const remaining = COOLDOWN_DURATION - currentPassed;
+                    
+                    if (remaining <= 0) {
+                        clearInterval(cooldownInterval);
+                        submitBtn.disabled = false;
+                        statusMsg.textContent = '';
+                        localStorage.removeItem('darkchan_last_upload');
+                    } else {
+                        statusMsg.style.color = '#ffffff';
+                        statusMsg.textContent = `Please wait ${formatTimeLeft(remaining)} until next upload`;
+                    }
+                }, 1000);
+
+                // Instantly display structural time instead of waiting 1s for interval drop
+                statusMsg.style.color = '#ffffff';
+                statusMsg.textContent = `Please wait ${formatTimeLeft(COOLDOWN_DURATION - timePassed)} until next upload`;
+            } else {
+                submitBtn.disabled = false;
+                localStorage.removeItem('darkchan_last_upload');
+            }
+        }
+
         // Initialize state engine data sync
         async function loadPlatformState() {
+            checkClientCooldown();
             try {
                 const res = await fetch('/api/public/data');
                 if (!res.ok) throw new Error("Data retrieval bad sequence");
@@ -472,6 +528,12 @@
         document.getElementById('publicSubmissionForm').addEventListener('submit', function(e) {
             e.preventDefault();
 
+            // Intercept submit directly if client cooldown is running concurrently
+            const lastUploadTime = localStorage.getItem('darkchan_last_upload');
+            if (lastUploadTime && (Date.now() - parseInt(lastUploadTime, 10) < COOLDOWN_DURATION)) {
+                return;
+            }
+
             const board = document.getElementById('submitTargetBoard').value;
             const fileInput = document.getElementById('publicMediaFile').files[0];
             const statusMsg = document.getElementById('submissionStatusMsg');
@@ -509,12 +571,15 @@
                     statusMsg.textContent = 'Post submitted into queue for admin approval validation.';
                     document.getElementById('publicSubmissionForm').reset();
                     document.getElementById('fileChosenFeedback').textContent = 'No file selected';
+                    
+                    // Activate local browser verification time record immediately on completion
+                    localStorage.setItem('darkchan_last_upload', Date.now().toString());
+                    checkClientCooldown();
                 } else {
                     try {
                         const errData = JSON.parse(xhr.responseText);
                         statusMsg.style.color = '#ffffff';
                         
-                        // Parse numbers out of server message to format into time strings (MM:SS)
                         if (xhr.status === 429 && errData.error) {
                             const match = errData.error.match(/\d+/);
                             if (match) {
@@ -525,6 +590,12 @@
                                 statusMsg.textContent = `Please wait ${formattedTime} until next upload`;
                             } else {
                                 statusMsg.textContent = errData.error;
+                            }
+                            
+                            // If backend triggers 429 but local storage sync cleared early, forcefully resync
+                            if (!localStorage.getItem('darkchan_last_upload')) {
+                                localStorage.setItem('darkchan_last_upload', Date.now().toString());
+                                checkClientCooldown();
                             }
                         } else {
                             statusMsg.textContent = errData.error || 'Server error processing queue ingestion.';
