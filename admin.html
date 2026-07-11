@@ -5,91 +5,102 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control Panel - Admin Platform</title>
     <style>
+        /* Shared imageboard dark mode color scheme palette */
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
         }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: #111;
-            color: #fff;
-            padding: 2rem;
+            background-color: #1d1f21;
+            color: #c5c8c6;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 13px;
+            padding: 20px;
         }
         .container {
             max-width: 1200px;
             margin: 0 auto;
         }
         h1 {
-            margin-bottom: 2rem;
-            border-bottom: 1px solid #333;
-            padding-bottom: 1rem;
+            color: #cc6666;
+            font-size: 24px;
+            letter-spacing: -1px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #282a2e;
+            padding-bottom: 10px;
         }
         h2 {
-            font-size: 1.3rem;
-            margin-bottom: 1rem;
-            color: #ccc;
+            font-size: 14px;
+            color: #b294bb;
+            margin-bottom: 15px;
+            font-weight: bold;
         }
         .section-wrapper {
-            background: #1a1a1a;
-            border: 1px solid #2a2a2a;
-            border-radius: 10px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
+            background-color: #282a2e;
+            border: 1px solid #373b41;
+            border-radius: 2px;
+            padding: 15px;
+            margin-bottom: 20px;
         }
         .grid-split {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 2rem;
+            gap: 20px;
         }
         @media (max-width: 768px) {
             .grid-split { grid-template-columns: 1fr; }
         }
         .form-group {
-            margin-bottom: 1rem;
+            margin-bottom: 12px;
         }
         label {
             display: block;
-            margin-bottom: 0.5rem;
-            font-size: 0.9rem;
-            color: #aaa;
+            margin-bottom: 5px;
+            font-size: 11px;
+            color: #969896;
+            font-weight: bold;
         }
         input, select, button {
             width: 100%;
-            background: #2a2a2a;
-            border: 1px solid #444;
-            color: #fff;
-            padding: 0.6rem;
-            border-radius: 6px;
-            font-size: 0.95rem;
+            background: #1d1f21;
+            border: 1px solid #373b41;
+            color: #c5c8c6;
+            padding: 6px;
+            border-radius: 2px;
+            font-size: 12px;
+            font-family: monospace;
             outline: none;
         }
+        input:focus, select:focus {
+            border-color: #5f89ac;
+        }
         button {
-            background: #0070f3;
-            border-color: #0070f3;
+            background: #373b41;
+            border-color: #5f89ac;
             cursor: pointer;
-            font-weight: 600;
-            transition: background 0.2s;
-            margin-top: 0.5rem;
+            font-weight: bold;
+            transition: background 0.15s;
+            margin-top: 5px;
         }
-        button:hover { background: #0051a8; }
+        button:hover { background: #1d1f21; color: #fff; }
         .danger-btn {
-            background: #ff4a4a;
-            border-color: #ff4a4a;
+            border-color: #cc6666;
+            color: #cc6666;
         }
-        .danger-btn:hover { background: #b82626; }
+        .danger-btn:hover { background: #cc6666; color: #1d1f21; }
         
-        /* Queue System Cards & Setup */
+        /* Queue System Section Styling Map */
         .queue-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
+            gap: 15px;
+            margin-top: 10px;
         }
         .queue-card {
-            background: #222;
-            border: 1px solid #333;
-            border-radius: 8px;
+            background: #1d1f21;
+            border: 1px solid #373b41;
+            border-radius: 2px;
             overflow: hidden;
             display: flex;
             flex-direction: column;
@@ -97,9 +108,10 @@
         }
         .queue-media {
             width: 100%;
-            height: 140px;
-            background: #000;
+            height: 150px;
+            background: #151515;
             position: relative;
+            border-bottom: 1px dashed #373b41;
         }
         .queue-media img, .queue-media video {
             width: 100%;
@@ -107,52 +119,55 @@
             object-fit: contain;
         }
         .queue-meta {
-            padding: 0.75rem;
-            font-size: 0.85rem;
+            padding: 8px;
+            font-size: 11px;
             display: flex;
             flex-direction: column;
-            gap: 0.25rem;
+            gap: 4px;
+            color: #969896;
         }
         .meta-target {
-            color: #0070f3;
+            color: #81a2be;
             font-weight: bold;
         }
         .queue-actions {
             display: flex;
-            gap: 5px;
-            padding: 0.5rem 0.75rem 0.75rem;
+            gap: 6px;
+            padding: 0 8px 8px;
             margin-top: auto;
         }
         .queue-actions button {
             margin-top: 0;
-            padding: 0.4rem;
-            font-size: 0.8rem;
+            padding: 4px;
+            font-size: 11px;
         }
         .queue-count-badge {
-            background: #333;
-            color: #aaa;
-            padding: 0.2rem 0.6rem;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: normal;
+            background: #1d1f21;
+            color: #de935f;
+            padding: 2px 8px;
+            border: 1px solid #373b41;
+            border-radius: 2px;
+            font-size: 11px;
+            font-weight: bold;
             margin-left: 10px;
             display: inline-block;
             vertical-align: middle;
         }
 
-        /* Progress Bar Indicators */
+        /* Upload Operations Indicators */
         .progress-box {
             display: none;
-            margin-top: 1rem;
-            background: #222;
-            border-radius: 6px;
+            margin-top: 12px;
+            background: #1d1f21;
+            border: 1px solid #373b41;
+            border-radius: 2px;
             overflow: hidden;
-            height: 20px;
+            height: 18px;
             position: relative;
         }
         .progress-fill {
             height: 100%;
-            background: #0070f3;
+            background: #5f89ac;
             width: 0%;
         }
         .progress-indicator-text {
@@ -161,15 +176,17 @@
             text-align: center;
             top: 0;
             left: 0;
-            font-size: 0.8rem;
-            line-height: 20px;
+            font-size: 11px;
+            line-height: 16px;
             font-weight: bold;
+            color: #fff;
         }
         .status-msg {
-            margin-top: 1rem;
-            font-size: 0.95rem;
+            margin-top: 12px;
+            font-size: 12px;
             white-space: pre-line;
             text-align: center;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -178,12 +195,12 @@
     <div class="container">
         <h1>System Control Panel</h1>
 
-        <!-- Password Validation Form Header -->
+        <!-- Password Validation Form Header (Value wiped cleanly) -->
         <div class="section-wrapper" id="authGate">
             <h2>System Authentication</h2>
             <div class="form-group">
                 <label for="adminPassword">Master System Password</label>
-<input type="password" id="adminPassword" placeholder="Enter security passphrase...">
+                <input type="password" id="adminPassword" placeholder="Enter security passphrase...">
             </div>
             <button id="verifyCredentialsBtn">Establish Active Session</button>
         </div>
@@ -196,9 +213,9 @@
                     Pending Submissions Queue 
                     <span class="queue-count-badge" id="queueTotalCount">Total: 0</span>
                 </h2>
-                <div id="queueStatusMessage" style="color: #888; font-style: italic; margin-bottom: 0.5rem;"></div>
+                <div id="queueStatusMessage" style="color: #969896; font-style: italic; margin-bottom: 8px; font-size: 11px;"></div>
                 <div class="queue-grid" id="approvalQueueGrid">
-                    <!-- Top 5 unapproved queue structures pop out here -->
+                    <!-- Top 5 unapproved items layer dynamically here -->
                 </div>
             </div>
 
@@ -248,7 +265,7 @@
             <div class="section-wrapper" style="margin-top: 2rem;">
                 <h2>Direct Fast Upload (Bypass Queue System)</h2>
                 <form id="adminDirectUploadForm">
-                    <div class="grid-split" style="gap: 1rem; margin-bottom: 1rem;">
+                    <div class="grid-split" style="gap: 12px; margin-bottom: 12px;">
                         <div class="form-group">
                             <label for="uploadBoardSelector">Target Destination Board</label>
                             <select id="uploadBoardSelector" required>
@@ -262,7 +279,7 @@
                     </div>
                     <div class="form-group">
                         <label for="directMediaFiles">Select Files for Instant Publication</label>
-                        <input type="file" id="directMediaFiles" accept="image/*,video/*" multiple required>
+                        <input type="file" id="directMediaFiles" style="color:#c5c8c6; font-size:11px;" accept="image/*,video/*" multiple required>
                     </div>
                     <button type="submit">Publish Live Instantly</button>
                 </form>
@@ -298,16 +315,29 @@
             return document.getElementById('adminPassword').value;
         }
 
-        // Test credentials and activate view space
+        // Test credentials securely against backend and unpack dashboards
         async function runInitialValidation() {
             const currentPass = getAuthPassword();
+            if (!currentPass) {
+                alert('Please enter a password first.');
+                return;
+            }
             try {
-                const res = await fetch('/api/data');
+                // Pass secure header validation to prevent unauthenticated database parsing
+                const res = await fetch('/api/data', {
+                    headers: { 'x-admin-password': currentPass }
+                });
+                
+                if (res.status === 401) {
+                    alert('Invalid master system security passphrase.');
+                    return;
+                }
                 if (!res.ok) throw new Error();
+                
                 serverCache = await res.json();
                 
-                // Hide gateway shield and unpack runtime dashboards
-                document.getElementById('authGate').style.background = '#1a3a1a';
+                // Hide gateway shield and display the runtime layouts
+                document.getElementById('authGate').style.display = 'none';
                 document.getElementById('controlDashboard').style.display = 'block';
                 
                 refreshDashboardViews();
@@ -316,10 +346,12 @@
             }
         }
 
-        // Fetch refreshed runtime state from the server database
+        // Fetch refreshed runtime state from the server database with active headers
         async function synchroniseState() {
             try {
-                const res = await fetch('/api/data');
+                const res = await fetch('/api/data', {
+                    headers: { 'x-admin-password': getAuthPassword() }
+                });
                 if (res.ok) {
                     serverCache = await res.json();
                     refreshDashboardViews();
@@ -353,12 +385,12 @@
                 
                 const opt1 = document.createElement('option');
                 opt1.value = key;
-                opt1.textContent = `${title} (${key})`;
+                opt1.textContent = `/${key}/ - ${title}`;
                 delSelector.appendChild(opt1);
 
                 const opt2 = document.createElement('option');
                 opt2.value = key;
-                opt2.textContent = `${title} (${key})`;
+                opt2.textContent = `/${key}/ - ${title}`;
                 uploadSelector.appendChild(opt2);
             });
 
@@ -410,7 +442,7 @@
                 meta.className = 'queue-meta';
                 meta.innerHTML = `
                     <div><strong>ID:</strong> ${item.id}</div>
-                    <div><strong>Board:</strong> <span class="meta-target">${item.board}</span></div>
+                    <div><strong>Target Board:</strong> <span class="meta-target">/${item.board}/</span></div>
                 `;
 
                 const actions = document.createElement('div');
@@ -452,7 +484,6 @@
                     // Update client instance dynamically and refresh layout view slices immediately
                     serverCache.pendingPosts = serverCache.pendingPosts.filter(p => p.id !== String(postId));
                     
-                    // If approved, push structural copy into live list
                     if (actionType === 'approve') {
                         synchroniseState(); 
                     } else {
@@ -476,8 +507,11 @@
             try {
                 const res = await fetch('/api/boards/create', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, title, type, password: getAuthPassword() })
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-admin-password': getAuthPassword()
+                    },
+                    body: JSON.stringify({ name, title, type })
                 });
                 const data = await res.json();
                 if (res.ok && data.success) {
@@ -503,8 +537,11 @@
             try {
                 const res = await fetch('/api/boards/delete', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, password: getAuthPassword() })
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-admin-password': getAuthPassword()
+                    },
+                    body: JSON.stringify({ name })
                 });
                 const data = await res.json();
                 if (res.ok && data.success) {
@@ -531,7 +568,7 @@
             const progText = document.getElementById('adminUploadProgressText');
 
             if (!board || files.length === 0) {
-                statusMsg.style.color = '#ff4a4a';
+                statusMsg.style.color = '#cc6666';
                 statusMsg.textContent = 'Missing core upload assets.';
                 return;
             }
@@ -539,7 +576,6 @@
             const formData = new FormData();
             formData.append('board', board);
             formData.append('customId', customId);
-            formData.append('password', getAuthPassword());
             for (let i = 0; i < files.length; i++) {
                 formData.append('media', files[i]);
             }
@@ -551,6 +587,9 @@
 
             const xhr = new XMLHttpRequest();
             xhr.open('POST', '/api/posts/upload', true);
+            
+            // Set required master administrative authorization verification tokens
+            xhr.setRequestHeader('x-admin-password', getAuthPassword());
 
             xhr.upload.addEventListener('progress', (event) => {
                 if (event.lengthComputable) {
@@ -563,7 +602,7 @@
             xhr.onload = function () {
                 if (xhr.status === 200) {
                     const response = JSON.parse(xhr.responseText);
-                    statusMsg.style.color = '#4caf50';
+                    statusMsg.style.color = '#b5bd68';
                     let text = response.message || 'Direct bypass upload succeeded!';
                     if (response.warnings) text += '\nWarnings:\n' + response.warnings.join('\n');
                     statusMsg.textContent = text;
@@ -571,7 +610,7 @@
                     synchroniseState();
                 } else {
                     const response = JSON.parse(xhr.responseText);
-                    statusMsg.style.color = '#ff4a4a';
+                    statusMsg.style.color = '#cc6666';
                     statusMsg.textContent = response.error || 'Server error encountered processing bypassing routine.';
                 }
             };
@@ -589,21 +628,24 @@
             try {
                 const res = await fetch('/api/posts/delete', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id, password: getAuthPassword() })
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-admin-password': getAuthPassword()
+                    },
+                    body: JSON.stringify({ id })
                 });
                 const data = await res.json();
                 if (res.ok && data.success) {
-                    msgNode.style.color = '#4caf50';
+                    msgNode.style.color = '#b5bd68';
                     msgNode.textContent = `Post ID ${id} wiped clean from tracking registers.`;
                     document.getElementById('deletePostForm').reset();
                     synchroniseState();
                 } else {
-                    msgNode.style.color = '#ff4a4a';
+                    msgNode.style.color = '#cc6666';
                     msgNode.textContent = data.error || 'Post removal failed.';
                 }
             } catch (err) {
-                msgNode.style.color = '#ff4a4a';
+                msgNode.style.color = '#cc6666';
                 msgNode.textContent = 'Network execution interrupt during post removal.';
             }
         });
