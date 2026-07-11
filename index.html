@@ -3,441 +3,441 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>/chan/ - Video & Image Boards</title>
+    <title>Media Viewer Platform</title>
     <style>
-        :root {
-            --bg-color: #eef2ff;
-            --board-bg: #d6daf0;
-            --text-color: #111111;
-            --link-color: #34345c;
-            --border-color: #b7c5d9;
-            --card-bg: #d6daf0;
-        }
-
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: Arial, sans-serif;
+        * {
+            box-sizing: border-box;
             margin: 0;
-            padding: 20px;
+            padding: 0;
         }
-
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #111;
+            color: #fff;
+            min-height: 100vh;
+        }
         header {
-            border-bottom: 2px solid var(--border-color);
-            padding-bottom: 15px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        h1 {
-            color: #af0a0f;
-            font-size: 24px;
-            margin: 5px 0 15px 0;
-        }
-
-        .board-nav {
-            font-size: 14px;
-            margin-bottom: 15px;
-        }
-
-        .board-nav a {
-            color: var(--link-color);
-            text-decoration: none;
-            font-weight: bold;
-            padding: 0 5px;
-        }
-
-        .board-nav a:hover {
-            color: #ff0000;
-        }
-
-        .search-container {
-            margin: 10px auto;
-            max-width: 400px;
+            background: #1a1a1a;
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
             display: flex;
-            gap: 8px;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
         }
-
-        .search-bar {
-            flex: 1;
-            padding: 6px 10px;
-            border: 1px solid var(--border-color);
-            border-radius: 3px;
-            font-size: 14px;
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
         }
-
-        .search-btn {
-            background-color: #f0f0f0;
-            border: 1px solid var(--border-color);
-            padding: 6px 12px;
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        select, button {
+            background: #2a2a2a;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
             cursor: pointer;
-            font-size: 14px;
-            border-radius: 3px;
+            outline: none;
+            transition: background 0.2s;
         }
-
+        select:hover, button:hover {
+            background: #3a3a3a;
+        }
+        .submit-btn {
+            background: #0070f3;
+            border-color: #0070f3;
+        }
+        .submit-btn:hover {
+            background: #0051a8;
+        }
         .container {
-            max-width: 1200px;
-            margin: 0 auto;
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 1rem;
         }
-
-        .view {
-            display: none;
-        }
-
-        .view.active {
-            display: block;
-        }
-
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 20px;
-            padding: 10px 0;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
         }
-
-        .post-card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 3px;
-            padding: 8px;
-            box-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+        .card {
+            background: #1a1a1a;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #2a2a2a;
             display: flex;
             flex-direction: column;
-            cursor: pointer;
         }
-
-        .post-info {
-            font-size: 12px;
-            color: #444;
-            margin-bottom: 8px;
-            border-bottom: 1px dashed var(--border-color);
-            padding-bottom: 4px;
-        }
-
         .media-container {
-            width: 100%;
-            height: 240px;
-            background-color: #000;
             position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            background: #000;
         }
-
-        video, img {
+        .media-container img, .media-container video {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
             object-fit: contain;
-            pointer-events: none;
         }
-
-        .media-placeholder {
-            position: absolute;
-            color: #aaa;
-            font-size: 14px;
-            pointer-events: none;
+        .card-info {
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1a1a1a;
+            border-top: 1px solid #2a2a2a;
         }
-
-        .welcome-msg {
-            background-color: var(--board-bg);
-            border: 1px solid var(--border-color);
-            padding: 20px;
-            text-align: center;
+        .post-id {
+            color: #888;
+            font-size: 0.85rem;
+            font-family: monospace;
         }
-
-        .focus-overlay {
+        /* User Upload Modal Styling */
+        .modal {
             display: none;
             position: fixed;
             top: 0;
             left: 0;
-            width: 100vw;
-            height: 100vh;
-            background-color: rgba(0, 0, 0, 0.9);
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .focus-overlay.active {
-            display: flex;
-        }
-
-        .focus-content {
-            position: relative;
-            width: 90%;
-            max-width: 1000px;
-            max-height: 85vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .focus-video, .focus-img {
             width: 100%;
-            max-height: 80vh;
-            object-fit: contain;
-            display: none;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
         }
-
-        .focus-video.active, .focus-img.active {
-            display: block;
-            pointer-events: auto;
+        .modal-content {
+            background: #1a1a1a;
+            padding: 2rem;
+            border-radius: 12px;
+            border: 1px solid #333;
+            width: 100%;
+            max-width: 500px;
+            position: relative;
         }
-
-        .close-btn {
+        .close-modal {
             position: absolute;
-            top: -40px;
-            right: 0;
-            color: #fff;
-            font-size: 20px;
-            cursor: pointer;
+            top: 1rem;
+            right: 1rem;
             background: none;
             border: none;
-            font-family: monospace;
+            font-size: 1.5rem;
+            color: #888;
+            cursor: pointer;
+        }
+        .close-modal:hover {
+            color: #fff;
+        }
+        .modal h2 {
+            margin-bottom: 1.5rem;
+            font-size: 1.3rem;
+        }
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+        .form-group select, .form-group input[type="file"] {
+            width: 100%;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            padding: 0.6rem;
+            border-radius: 6px;
+            color: #fff;
+        }
+        .progress-container {
+            display: none;
+            margin-top: 1rem;
+            background: #2a2a2a;
+            border-radius: 6px;
+            overflow: hidden;
+            height: 20px;
+            position: relative;
+        }
+        .progress-bar {
+            height: 100%;
+            background: #0070f3;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+        .progress-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            top: 0;
+            left: 0;
+            font-size: 0.8rem;
+            line-height: 20px;
+            font-weight: bold;
+        }
+        .status-message {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        .empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #666;
+            font-size: 1.1rem;
         }
     </style>
 </head>
 <body>
 
     <header>
-        <div id="navigation-bar" class="board-nav">
-            [ <a href="#" onclick="switchBoard('general')">gen</a> ]
-        </div>
-        <h1 id="board-title">/gen/ - General Board</h1>
-        
-        <div class="search-container">
-            <input type="text" id="board-search" class="search-bar" placeholder="Search Post ID across all boards...">
-            <button class="search-btn" onclick="executeGlobalSearch()">Search</button>
-            <button class="search-btn" onclick="clearSearch()">Clear</button>
+        <h1>Media Platform</h1>
+        <div class="header-actions">
+            <select id="boardSelector">
+                <option value="">Loading Boards...</option>
+            </select>
+            <button class="submit-btn" id="openUploadBtn">Submit Media</button>
         </div>
     </header>
 
-    <div id="views-container" class="container">
-        <div id="view-general" class="view active">
-            <div class="welcome-msg">
-                <h2>Welcome to the Media Board System</h2>
-                <p>Select a custom board from the navigation layout above to begin browsing content posts.</p>
-            </div>
+    <div class="container">
+        <div class="grid" id="mediaGrid">
+            <!-- Dynamic Post Cards Render Here -->
         </div>
     </div>
 
-    <div id="media-focus-overlay" class="focus-overlay" onclick="closeFocusView()">
-        <div class="focus-content" onclick="event.stopPropagation()">
-            <button class="close-btn" onclick="closeFocusView()">[X]</button>
-            <video id="focused-video-player" class="focus-video" controls autoplay loop></video>
-            <img id="focused-image-viewer" class="focus-img" src="" alt="focused expansion">
+    <!-- User Upload Submission Modal -->
+    <div class="modal" id="uploadModal">
+        <div class="modal-content">
+            <button class="close-modal" id="closeUploadBtn">&times;</button>
+            <h2>Submit Content for Approval</h2>
+            <form id="submissionForm">
+                <div class="form-group">
+                    <label for="submitBoardSelector">Select Destination Board</label>
+                    <select id="submitBoardSelector" required>
+                        <!-- Dynamic options loaded from database structural state -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="mediaFiles">Choose Files (Images or Videos)</label>
+                    <input type="file" id="mediaFiles" accept="image/*,video/*" multiple required>
+                </div>
+                <button type="submit" class="submit-btn" style="width: 100%; margin-top: 0.5rem;">Upload Submissions</button>
+            </form>
+
+            <div class="progress-container" id="uploadProgressContainer">
+                <div class="progress-bar" id="uploadProgressBar"></div>
+                <div class="progress-text" id="uploadProgressText">0%</div>
+            </div>
+            <div class="status-message" id="statusMessage"></div>
         </div>
     </div>
 
     <script>
-        let currentActiveBoard = 'general';
-        let appData = { boards: {}, posts: [] };
-        let unloaderObserver = null;
+        let globalData = { boards: {}, posts: [] };
 
-        window.addEventListener('DOMContentLoaded', loadAppData);
-
-        async function loadAppData() {
+        // Fetch initialization infrastructure state
+        async function loadContent() {
             try {
-                const response = await fetch('/api/data');
-                appData = await response.json();
-                renderNavigationAndContainers();
-                initDynamicUnloader();
+                const res = await fetch('/api/data');
+                if (!res.ok) throw new Error('Failed to retrieve application index dataset.');
+                globalData = await res.json();
+                
+                populateBoardSelectors();
+                renderActiveGrid();
             } catch (err) {
-                console.error("Failed loading app data schema:", err);
+                console.error(err);
+                document.getElementById('mediaGrid').innerHTML = `<div class="empty-state" style="color: #ff4a4a;">Failed to load system feeds. Check your connection.</div>`;
             }
         }
 
-        function renderNavigationAndContainers() {
-            const nav = document.getElementById('navigation-bar');
-            const container = document.getElementById('views-container');
+        // Keep dropdown controls up to date with live categories
+        function populateBoardSelectors() {
+            const boardSelector = document.getElementById('boardSelector');
+            const submitBoardSelector = document.getElementById('submitBoardSelector');
             
-            // Reset dynamic parts
-            nav.innerHTML = '[ <a href="#" onclick="switchBoard(\'general\')">gen</a> ]';
-            document.querySelectorAll('.dynamic-view').forEach(el => el.remove());
+            const currentSelection = boardSelector.value;
+            
+            boardSelector.innerHTML = '<option value="">All Boards</option>';
+            submitBoardSelector.innerHTML = '';
 
-            // Build structural components per board configuration found
-            Object.keys(appData.boards).forEach(boardName => {
-                const b = appData.boards[boardName];
+            const boardKeys = Object.keys(globalData.boards);
+
+            if (boardKeys.length === 0) {
+                submitBoardSelector.innerHTML = '<option value="">No boards available</option>';
+                return;
+            }
+
+            boardKeys.forEach(key => {
+                const board = globalData.boards[key];
                 
-                // Nav link
-                nav.innerHTML += ` :: [ <a href="#" onclick="switchBoard('${boardName}')">${boardName}</a> ]`;
+                const opt1 = document.createElement('option');
+                opt1.value = key;
+                opt1.textContent = board.title;
+                boardSelector.appendChild(opt1);
 
-                // View grid shell
-                const viewDiv = document.createElement('div');
-                viewDiv.id = `view-${boardName}`;
-                viewDiv.className = 'view dynamic-view';
+                const opt2 = document.createElement('option');
+                opt2.value = key;
+                opt2.textContent = board.title;
+                submitBoardSelector.appendChild(opt2);
+            });
+
+            if (Object.keys(globalData.boards).includes(currentSelection)) {
+                boardSelector.value = currentSelection;
+            }
+        }
+
+        // Render current live feed filtered down by category
+        function renderActiveGrid() {
+            const grid = document.getElementById('mediaGrid');
+            const targetBoard = document.getElementById('boardSelector').value;
+            grid.innerHTML = '';
+
+            // Filter out items matching target board parameter
+            const filteredPosts = targetBoard 
+                ? globalData.posts.filter(p => p.board === targetBoard)
+                : globalData.posts;
+
+            if (filteredPosts.length === 0) {
+                grid.innerHTML = '<div class="empty-state">No active media elements found on this board.</div>';
+                return;
+            }
+
+            // Generate clean structural cards
+            filteredPosts.forEach(post => {
+                const card = document.createElement('div');
+                card.className = 'card';
+
+                const mediaContainer = document.createElement('div');
+                mediaContainer.className = 'media-container';
+
+                if (post.type === 'video') {
+                    const video = document.createElement('video');
+                    video.src = post.src;
+                    video.controls = true;
+                    video.preload = 'metadata';
+                    mediaContainer.appendChild(video);
+                } else {
+                    const img = document.createElement('img');
+                    img.src = post.src;
+                    img.loading = 'lazy';
+                    mediaContainer.appendChild(img);
+                }
+
+                const cardInfo = document.createElement('div');
+                cardInfo.className = 'card-info';
                 
-                const gridDiv = document.createElement('div');
-                gridDiv.id = `${boardName}-grid`;
-                gridDiv.className = 'grid';
-
-                viewDiv.appendChild(gridDiv);
-                container.appendChild(viewDiv);
-
-                // Filter and inject matching items
-                const boardPosts = appData.posts.filter(p => p.board === boardName);
-                boardPosts.forEach(post => {
-                    const card = createPostCard(post.id, boardName, post.src, post.type);
-                    gridDiv.appendChild(card);
-                });
+                const idSpan = document.createElement('span');
+                idSpan.className = 'post-id';
+                idSpan.textContent = `ID: ${post.id}`;
+                
+                cardInfo.appendChild(idSpan);
+                card.appendChild(mediaContainer);
+                card.appendChild(cardInfo);
+                grid.appendChild(card);
             });
         }
 
-        function createPostCard(id, boardName, src, type) {
-            const card = document.createElement('div');
-            card.className = 'post-card';
-            card.setAttribute('data-id', id);
-            card.setAttribute('data-board', boardName);
-            card.setAttribute('data-type', type);
+        // Modal visibility toggle state tracking listeners
+        const uploadModal = document.getElementById('uploadModal');
+        const openUploadBtn = document.getElementById('openUploadBtn');
+        const closeUploadBtn = document.getElementById('closeUploadBtn');
+        const submissionForm = document.getElementById('submissionForm');
+        const statusMessage = document.getElementById('statusMessage');
+        const progressContainer = document.getElementById('uploadProgressContainer');
+        const progressBar = document.getElementById('uploadProgressBar');
+        const progressText = document.getElementById('uploadProgressText');
 
-            if (type === 'video') {
-                card.addEventListener('mouseenter', handleHoverPlay);
-                card.addEventListener('mouseleave', handleHoverStop);
+        openUploadBtn.addEventListener('click', () => {
+            uploadModal.style.display = 'flex';
+            statusMessage.textContent = '';
+            progressContainer.style.display = 'none';
+            submissionForm.reset();
+        });
+
+        closeUploadBtn.addEventListener('click', () => {
+            uploadModal.style.display = 'none';
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target === uploadModal) uploadModal.style.display = 'none';
+        });
+
+        // Track custom submission process via AJAX XMLHttpRequest with live tracking bars
+        submissionForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const board = document.getElementById('submitBoardSelector').value;
+            const files = document.getElementById('mediaFiles').files;
+
+            if (!board) {
+                statusMessage.style.color = '#ff4a4a';
+                statusMessage.textContent = 'Please choose a target board asset category first.';
+                return;
             }
-            card.addEventListener('click', () => launchFocusView(src, type));
 
-            card.innerHTML = `
-                <div class="post-info">
-                    <span style="color:#117743; font-weight:bold;">Anonymous</span> No. <span>${id}</span>
-                </div>
-                <div class="media-container" data-src="${src}" data-media-type="${type}">
-                    <div class="media-placeholder">Click to Open</div>
-                </div>
-            `;
-            return card;
-        }
-
-        function switchBoard(boardName) {
-            currentActiveBoard = boardName;
-            clearSearch();
-            
-            document.querySelectorAll('.view').forEach(view => view.classList.remove('active'));
-            const targetView = document.getElementById(`view-${boardName}`);
-            if (targetView) targetView.classList.add('active');
-
-            const titleEl = document.getElementById('board-title');
-            if (boardName === 'general') {
-                titleEl.textContent = '/gen/ - General Board';
-            } else {
-                const title = appData.boards[boardName]?.title || 'Board';
-                const type = appData.boards[boardName]?.type || 'media';
-                titleEl.textContent = `/${boardName}/ - ${title} (${type})`;
+            const formData = new FormData();
+            formData.append('board', board);
+            for (let i = 0; i < files.length; i++) {
+                formData.append('media', files[i]);
             }
-        }
 
-        function initDynamicUnloader() {
-            if (unloaderObserver) unloaderObserver.disconnect();
+            statusMessage.textContent = '';
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+            progressText.textContent = '0%';
 
-            const options = { root: null, rootMargin: '300px 0px', threshold: 0.0 };
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/posts/submit', true);
 
-            unloaderObserver = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    const container = entry.target;
-                    const mediaSrc = container.getAttribute('data-src');
-                    const mediaType = container.getAttribute('data-media-type');
-                    const placeholder = container.querySelector('.media-placeholder');
-
-                    if (entry.isIntersecting) {
-                        if (!container.querySelector('video') && !container.querySelector('img')) {
-                            let element = (mediaType === 'video') ? document.createElement('video') : document.createElement('img');
-                            if (mediaType === 'video') {
-                                element.muted = true;
-                                element.loop = true;
-                                element.preload = "metadata";
-                                element.playsInline = true;
-                            }
-                            element.src = mediaSrc;
-                            element.onload = element.onloadeddata = () => {
-                                if (placeholder) placeholder.style.display = 'none';
-                            };
-                            container.appendChild(element);
-                        }
-                    } else {
-                        const element = container.querySelector('video, img');
-                        if (element) {
-                            if (mediaType === 'video') element.pause();
-                            element.removeAttribute('src');
-                            if (element.load) element.load();
-                            element.remove();
-                            if (placeholder) placeholder.style.display = 'block';
-                        }
-                    }
-                });
-            }, options);
-
-            document.querySelectorAll('.media-container').forEach(c => unloaderObserver.observe(c));
-        }
-
-        function handleHoverPlay(e) {
-            const video = e.currentTarget.querySelector('video');
-            if (video) { video.muted = true; video.play().catch(() => {}); }
-        }
-
-        function handleHoverStop(e) {
-            const video = e.currentTarget.querySelector('video');
-            if (video) { video.pause(); video.currentTime = 0; }
-        }
-
-        function launchFocusView(src, type) {
-            const overlay = document.getElementById('media-focus-overlay');
-            const videoPlayer = document.getElementById('focused-video-player');
-            const imageViewer = document.getElementById('focused-image-viewer');
-
-            videoPlayer.classList.remove('active');
-            imageViewer.classList.remove('active');
-
-            if (type === 'video') {
-                videoPlayer.src = src;
-                videoPlayer.muted = false;
-                videoPlayer.classList.add('active');
-                videoPlayer.play().catch(() => {});
-            } else {
-                imageViewer.src = src;
-                imageViewer.classList.add('active');
-            }
-            overlay.classList.add('active');
-        }
-
-        function closeFocusView() {
-            const overlay = document.getElementById('media-focus-overlay');
-            const videoPlayer = document.getElementById('focused-video-player');
-            const imageViewer = document.getElementById('focused-image-viewer');
-
-            overlay.classList.remove('active');
-            videoPlayer.pause();
-            videoPlayer.removeAttribute('src');
-            if (videoPlayer.load) videoPlayer.load();
-            imageViewer.removeAttribute('src');
-        }
-
-        function executeGlobalSearch() {
-            const query = document.getElementById('board-search').value.trim();
-            if (!query) { clearSearch(); return; }
-
-            let targetCard = null;
-            const allCards = document.querySelectorAll('.post-card');
-
-            allCards.forEach(card => {
-                if (card.getAttribute('data-id') === query) targetCard = card;
+            xhr.upload.addEventListener('progress', (event) => {
+                if (event.lengthComputable) {
+                    const percentComplete = Math.round((event.loaded / event.total) * 100);
+                    progressBar.style.width = percentComplete + '%';
+                    progressText.textContent = percentComplete + '%';
+                }
             });
 
-            if (targetCard) {
-                const boardGroup = targetCard.getAttribute('data-board');
-                switchBoard(boardGroup);
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    statusMessage.style.color = '#4caf50';
+                    statusMessage.textContent = response.message || 'Submitted successfully!';
+                    submissionForm.reset();
+                    
+                    // Automatically wrap up operation close sequence after delay window
+                    setTimeout(() => {
+                        uploadModal.style.display = 'none';
+                    }, 2000);
+                } else {
+                    const errorResponse = JSON.parse(xhr.responseText);
+                    statusMessage.style.color = '#ff4a4a';
+                    statusMessage.textContent = errorResponse.error || 'An operational upload failure has triggered.';
+                }
+            };
 
-                allCards.forEach(card => {
-                    card.style.display = (card.getAttribute('data-id') === query) ? 'flex' : 'none';
-                });
-            } else {
-                alert("Post ID not found on any current dynamic board.");
-            }
-        }
+            xhr.onerror = function () {
+                statusMessage.style.color = '#ff4a4a';
+                statusMessage.textContent = 'Network connectivity processing exception encountered.';
+            };
 
-        function clearSearch() {
-            document.getElementById('board-search').value = '';
-            document.querySelectorAll('.post-card').forEach(card => card.style.display = 'flex');
-        }
+            xhr.send(formData);
+        });
+
+        // Event filter watcher hook routing setup
+        document.getElementById('boardSelector').addEventListener('change', renderActiveGrid);
+
+        // Initial system paint run step execution hook
+        loadContent();
     </script>
 </body>
 </html>
