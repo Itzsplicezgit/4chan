@@ -3,300 +3,613 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>/chan/ Control Admin Panel</title>
+    <title>Control Panel - Admin Platform</title>
     <style>
-        body {
-            background-color: #f0f2f5;
-            color: #222;
-            font-family: Arial, sans-serif;
-            padding: 20px;
+        * {
+            box-sizing: border-box;
             margin: 0;
+            padding: 0;
         }
-        .admin-box {
-            max-width: 600px;
-            margin: 20px auto;
-            background: #fff;
-            padding: 20px;
-            border: 1px solid #b7c5d9;
-            border-radius: 4px;
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #111;
+            color: #fff;
+            padding: 2rem;
         }
-        h2 { margin-top: 0; color: #af0a0f; border-bottom: 1px solid #b7c5d9; padding-bottom: 5px;}
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            margin-bottom: 2rem;
+            border-bottom: 1px solid #333;
+            padding-bottom: 1rem;
+        }
+        h2 {
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+            color: #ccc;
+        }
+        .section-wrapper {
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .grid-split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        @media (max-width: 768px) {
+            .grid-split { grid-template-columns: 1fr; }
+        }
         .form-group {
-            margin-bottom: 15px;
-            display: flex;
-            flex-direction: column;
+            margin-bottom: 1rem;
         }
-        label { font-size: 13px; font-weight: bold; margin-bottom: 5px; }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: #aaa;
+        }
         input, select, button {
-            padding: 8px;
-            border: 1px solid #b7c5d9;
-            border-radius: 3px;
-            font-size: 14px;
+            width: 100%;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 0.6rem;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            outline: none;
         }
         button {
-            background-color: #d6daf0;
-            color: #111;
-            font-weight: bold;
+            background: #0070f3;
+            border-color: #0070f3;
             cursor: pointer;
-            border: 1px solid #34345c;
+            font-weight: 600;
+            transition: background 0.2s;
+            margin-top: 0.5rem;
         }
-        button:hover { background-color: #b7c5d9; }
-        .danger-btn { background-color: #ffdddd; border-color: #af0a0f; color: #af0a0f;}
-        .danger-btn:hover { background-color: #ffcccc; }
-        .list-item {
+        button:hover { background: #0051a8; }
+        .danger-btn {
+            background: #ff4a4a;
+            border-color: #ff4a4a;
+        }
+        .danger-btn:hover { background: #b82626; }
+        
+        /* Queue System Cards & Setup */
+        .queue-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .queue-card {
+            background: #222;
+            border: 1px solid #333;
+            border-radius: 8px;
+            overflow: hidden;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px;
-            border-bottom: 1px dashed #b7c5d9;
-            font-size: 14px;
+            flex-direction: column;
+            position: relative;
         }
-        .action-row {
+        .queue-media {
+            width: 100%;
+            height: 140px;
+            background: #000;
+            position: relative;
+        }
+        .queue-media img, .queue-media video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .queue-meta {
+            padding: 0.75rem;
+            font-size: 0.85rem;
             display: flex;
-            gap: 8px;
+            flex-direction: column;
+            gap: 0.25rem;
         }
-        .action-row input {
-            flex: 1;
+        .meta-target {
+            color: #0070f3;
+            font-weight: bold;
+        }
+        .queue-actions {
+            display: flex;
+            gap: 5px;
+            padding: 0.5rem 0.75rem 0.75rem;
+            margin-top: auto;
+        }
+        .queue-actions button {
+            margin-top: 0;
+            padding: 0.4rem;
+            font-size: 0.8rem;
+        }
+        .queue-count-badge {
+            background: #333;
+            color: #aaa;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: normal;
+            margin-left: 10px;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        /* Progress Bar Indicators */
+        .progress-box {
+            display: none;
+            margin-top: 1rem;
+            background: #222;
+            border-radius: 6px;
+            overflow: hidden;
+            height: 20px;
+            position: relative;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #0070f3;
+            width: 0%;
+        }
+        .progress-indicator-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            top: 0;
+            left: 0;
+            font-size: 0.8rem;
+            line-height: 20px;
+            font-weight: bold;
+        }
+        .status-msg {
+            margin-top: 1rem;
+            font-size: 0.95rem;
+            white-space: pre-line;
+            text-align: center;
         }
     </style>
 </head>
 <body>
 
-    <div id="auth-panel" class="admin-box">
-        <h2>Admin Authentication Required</h2>
-        <div class="form-group">
-            <label>Master System Password</label>
-            <input type="password" id="admin-password" placeholder="Enter system key...">
-        </div>
-        <button onclick="savePasswordKey()">Access Panel</button>
-    </div>
+    <div class="container">
+        <h1>System Control Panel</h1>
 
-    <div id="control-panel" style="display:none;">
-        
-        <div class="admin-box">
-            <h2>Create New Dynamic Board</h2>
+        <!-- Password Validation Form Header -->
+        <div class="section-wrapper" id="authGate">
+            <h2>System Authentication</h2>
             <div class="form-group">
-                <label>Board Short Code URI (e.g. "pics", "vids")</label>
-                <input type="text" id="new-board-name" placeholder="lowercase simple characters only...">
+                <label for="adminPassword">Master System Password</label>
+                <input type="password" id="adminPassword" value="fish" placeholder="Enter security passphrase...">
             </div>
-            <div class="form-group">
-                <label>Display Title String</label>
-                <input type="text" id="new-board-title" placeholder="e.g. Photography Board...">
-            </div>
-            <div class="form-group">
-                <label>Primary Medium Content Rule</label>
-                <select id="new-board-type">
-                    <option value="image">Image Board Format</option>
-                    <option value="video">Video Board Format</option>
-                </select>
-            </div>
-            <button onclick="createBoard()">Instantiate Board</button>
+            <button id="verifyCredentialsBtn">Establish Active Session</button>
         </div>
 
-        <div class="admin-box">
-            <h2>Upload Media Asset Entry</h2>
-            <div class="form-group">
-                <label>Target Board Destination</label>
-                <select id="upload-board-target"></select>
-            </div>
-            <div class="form-group">
-                <label>Custom Post ID (Only for single file, multi-files will auto-index)</label>
-                <input type="text" id="upload-custom-id" placeholder="e.g. 558291">
-            </div>
-            <div class="form-group">
-                <label>Select Target Media Asset File(s)</label>
-                <input type="file" id="upload-file-field" multiple>
-            </div>
+        <div id="controlDashboard" style="display: none;">
             
-            <div id="progress-container" style="display:none; margin-bottom: 15px; background: #eee; border-radius: 3px; overflow: hidden;">
-                <div id="progress-bar" style="width: 0%; height: 20px; background-color: #117743; color: white; text-align: center; font-size: 12px; line-height: 20px; font-weight: bold;">0%</div>
-            </div>
-
-            <button onclick="uploadContentAsset()">Post & Upload File(s)</button>
-        </div>
-
-        <div class="admin-box">
-            <h2>System Active Boards</h2>
-            <div id="boards-registry-list"></div>
-        </div>
-
-        <div class="admin-box">
-            <h2>Delete Asset Post by ID</h2>
-            <div class="form-group">
-                <label>Target Post ID</label>
-                <div class="action-row">
-                    <input type="text" id="delete-post-id" placeholder="Enter target Item ID (e.g., 482910)">
-                    <button class="danger-btn" onclick="deletePostAssetById()">Delete Asset</button>
+            <!-- User Upload Submissions Queue Block (Isolated top 5 pagination) -->
+            <div class="section-wrapper">
+                <h2>
+                    Pending Submissions Queue 
+                    <span class="queue-count-badge" id="queueTotalCount">Total: 0</span>
+                </h2>
+                <div id="queueStatusMessage" style="color: #888; font-style: italic; margin-bottom: 0.5rem;"></div>
+                <div class="queue-grid" id="approvalQueueGrid">
+                    <!-- Top 5 unapproved queue structures pop out here -->
                 </div>
             </div>
+
+            <div class="grid-split">
+                
+                <!-- Create Category Board Panel -->
+                <div class="section-wrapper">
+                    <h2>Create Asset Category Board</h2>
+                    <form id="createBoardForm">
+                        <div class="form-group">
+                            <label for="boardName">Unique Board Handle (No Spaces/Lowercase)</label>
+                            <input type="text" id="boardName" placeholder="e.g., coolartwork" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="boardTitle">Display Name Title</label>
+                            <input type="text" id="boardTitle" placeholder="e.g., Cool Artwork Space" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="boardType">Structural Collection Feed Type</label>
+                            <select id="boardType">
+                                <option value="mixed">Mixed Media Content Assets</option>
+                                <option value="images">Exclusively Images</option>
+                                <option value="videos">Exclusively Videos</option>
+                            </select>
+                        </div>
+                        <button type="submit">Deploy Board Category</button>
+                    </form>
+                </div>
+
+                <!-- Wipe Board Panel -->
+                <div class="section-wrapper">
+                    <h2>Decommission Board Category</h2>
+                    <form id="deleteBoardForm">
+                        <div class="form-group">
+                            <label for="deleteBoardSelector">Choose Targets For Destruction</label>
+                            <select id="deleteBoardSelector" required>
+                                <option value="">Loading Boards...</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="danger-btn">Delete Board & Associated Files</button>
+                    </form>
+                </div>
+
+            </div>
+
+            <!-- Direct Instant Upload Bypass Panel -->
+            <div class="section-wrapper" style="margin-top: 2rem;">
+                <h2>Direct Fast Upload (Bypass Queue System)</h2>
+                <form id="adminDirectUploadForm">
+                    <div class="grid-split" style="gap: 1rem; margin-bottom: 1rem;">
+                        <div class="form-group">
+                            <label for="uploadBoardSelector">Target Destination Board</label>
+                            <select id="uploadBoardSelector" required>
+                                <option value="">Loading Boards...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="customPostId">Custom Post ID String (Optional / Unique)</label>
+                            <input type="text" id="customPostId" placeholder="Auto-generated if left blank">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="directMediaFiles">Select Files for Instant Publication</label>
+                        <input type="file" id="directMediaFiles" accept="image/*,video/*" multiple required>
+                    </div>
+                    <button type="submit">Publish Live Instantly</button>
+                </form>
+
+                <div class="progress-box" id="adminUploadProgressBox">
+                    <div class="progress-fill" id="adminUploadProgressFill"></div>
+                    <div class="progress-indicator-text" id="adminUploadProgressText">0%</div>
+                </div>
+                <div class="status-msg" id="adminUploadStatusMsg"></div>
+            </div>
+
+            <!-- Existing Delete Live Post Panel View -->
+            <div class="section-wrapper">
+                <h2>Delete Active Content From Feed</h2>
+                <form id="deletePostForm">
+                    <div class="form-group">
+                        <label for="deletePostId">Enter Post ID String</label>
+                        <input type="text" id="deletePostId" placeholder="e.g., 583921" required>
+                    </div>
+                    <button type="submit" class="danger-btn">Wipe Active Item From Server</button>
+                </form>
+                <div class="status-msg" id="deletePostStatusMsg"></div>
+            </div>
+
         </div>
-        
     </div>
 
     <script>
-        let masterPass = '';
+        let serverCache = { boards: {}, posts: [], pendingPosts: [] };
 
-        function savePasswordKey() {
-            const passInput = document.getElementById('admin-password').value;
-            if(passInput === 'fish') {
-                masterPass = passInput;
-                document.getElementById('auth-panel').style.display = 'none';
-                document.getElementById('control-panel').style.display = 'block';
-                refreshAdminDashboardView();
-            } else {
-                alert("Incorrect password code rejected.");
+        // Central authentication header setup mapping function
+        function getAuthPassword() {
+            return document.getElementById('adminPassword').value;
+        }
+
+        // Test credentials and activate view space
+        async function runInitialValidation() {
+            const currentPass = getAuthPassword();
+            try {
+                const res = await fetch('/api/data');
+                if (!res.ok) throw new Error();
+                serverCache = await res.json();
+                
+                // Hide gateway shield and unpack runtime dashboards
+                document.getElementById('authGate').style.background = '#1a3a1a';
+                document.getElementById('controlDashboard').style.display = 'block';
+                
+                refreshDashboardViews();
+            } catch (err) {
+                alert('Database structural tracking dataset sync failed.');
             }
         }
 
-        async function refreshAdminDashboardView() {
+        // Fetch refreshed runtime state from the server database
+        async function synchroniseState() {
             try {
-                const response = await fetch('/api/data');
-                const data = await response.json();
+                const res = await fetch('/api/data');
+                if (res.ok) {
+                    serverCache = await res.json();
+                    refreshDashboardViews();
+                }
+            } catch (e) {
+                console.error("State sync background job interrupted:", e);
+            }
+        }
+
+        // Process dropdown adjustments and refresh structural elements
+        function refreshDashboardViews() {
+            populateSelectorDropdowns();
+            renderProgressiveQueueGrid();
+        }
+
+        // Update drop-down select option lists across structural nodes
+        function populateSelectorDropdowns() {
+            const delSelector = document.getElementById('deleteBoardSelector');
+            const uploadSelector = document.getElementById('uploadBoardSelector');
+            
+            const savedDelVal = delSelector.value;
+            const savedUpVal = uploadSelector.value;
+
+            delSelector.innerHTML = '<option value="">Select a board...</option>';
+            uploadSelector.innerHTML = '<option value="">Select a board...</option>';
+
+            const boardsList = Object.keys(serverCache.boards);
+
+            boardsList.forEach(key => {
+                const title = serverCache.boards[key].title;
                 
-                const boardTargetSelect = document.getElementById('upload-board-target');
-                const boardsList = document.getElementById('boards-registry-list');
+                const opt1 = document.createElement('option');
+                opt1.value = key;
+                opt1.textContent = `${title} (${key})`;
+                delSelector.appendChild(opt1);
 
-                // Clear layout structures
-                boardTargetSelect.innerHTML = '';
-                boardsList.innerHTML = '';
+                const opt2 = document.createElement('option');
+                opt2.value = key;
+                opt2.textContent = `${title} (${key})`;
+                uploadSelector.appendChild(opt2);
+            });
 
-                // Render Boards options & listings
-                Object.keys(data.boards).forEach(name => {
-                    const b = data.boards[name];
-                    boardTargetSelect.innerHTML += `<option value="${name}">/${name}/ - ${b.title}</option>`;
-                    
-                    boardsList.innerHTML += `
-                        <div class="list-item">
-                            <span><strong>/${name}/</strong> - ${b.title} (${b.type})</span>
-                            <button class="danger-btn" onclick="deleteBoard('${name}')">Delete Board</button>
-                        </div>
-                    `;
+            if (boardsList.includes(savedDelVal)) delSelector.value = savedDelVal;
+            if (boardsList.includes(savedUpVal)) uploadSelector.value = savedUpVal;
+        }
+
+        // Top-5 Progressive Queue Engine: Eliminates DOM lag by slicing the render window
+        function renderProgressiveQueueGrid() {
+            const grid = document.getElementById('approvalQueueGrid');
+            const totalCountBadge = document.getElementById('queueTotalCount');
+            const statusTxt = document.getElementById('queueStatusMessage');
+            
+            grid.innerHTML = '';
+            
+            const pendingList = serverCache.pendingPosts || [];
+            totalCountBadge.textContent = `Total: ${pendingList.length}`;
+
+            if (pendingList.length === 0) {
+                statusTxt.textContent = "The queue is clear. No items are waiting for approval.";
+                return;
+            }
+
+            statusTxt.textContent = `Displaying the top 5 oldest submissions to avoid page lag.`;
+
+            // Pull only the top 5 oldest items from the beginning of the queue array
+            const visibleSlice = pendingList.slice(0, 5);
+
+            visibleSlice.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'queue-card';
+
+                const mediaBox = document.createElement('div');
+                mediaBox.className = 'queue-media';
+
+                if (item.type === 'video') {
+                    const video = document.createElement('video');
+                    video.src = item.src;
+                    video.controls = true;
+                    video.preload = 'metadata';
+                    mediaBox.appendChild(video);
+                } else {
+                    const img = document.createElement('img');
+                    img.src = item.src;
+                    mediaBox.appendChild(img);
+                }
+
+                const meta = document.createElement('div');
+                meta.className = 'queue-meta';
+                meta.innerHTML = `
+                    <div><strong>ID:</strong> ${item.id}</div>
+                    <div><strong>Board:</strong> <span class="meta-target">${item.board}</span></div>
+                `;
+
+                const actions = document.createElement('div');
+                actions.className = 'queue-actions';
+
+                const approveBtn = document.createElement('button');
+                approveBtn.textContent = 'Approve';
+                approveBtn.addEventListener('click', () => processQueueAction(item.id, 'approve'));
+
+                const rejectBtn = document.createElement('button');
+                rejectBtn.textContent = 'Deny';
+                rejectBtn.className = 'danger-btn';
+                rejectBtn.addEventListener('click', () => processQueueAction(item.id, 'reject'));
+
+                actions.appendChild(approveBtn);
+                actions.appendChild(rejectBtn);
+                
+                card.appendChild(mediaBox);
+                card.appendChild(meta);
+                card.appendChild(actions);
+                grid.appendChild(card);
+            });
+        }
+
+        // Send Approval or Rejection instructions back to the application server
+        async function processQueueAction(postId, actionType) {
+            try {
+                const response = await fetch('/api/posts/approve', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-admin-password': getAuthPassword()
+                    },
+                    body: JSON.stringify({ id: postId, action: actionType })
                 });
 
+                const outcome = await response.json();
+                if (response.ok && outcome.success) {
+                    // Update client instance dynamically and refresh layout view slices immediately
+                    serverCache.pendingPosts = serverCache.pendingPosts.filter(p => p.id !== String(postId));
+                    
+                    // If approved, push structural copy into live list
+                    if (actionType === 'approve') {
+                        synchroniseState(); 
+                    } else {
+                        renderProgressiveQueueGrid();
+                    }
+                } else {
+                    alert(outcome.error || 'Failed to complete task action against queue.');
+                }
             } catch (err) {
-                console.error("Dashboard synchronization error:", err);
+                alert('Network request execution error processing verification steps.');
             }
         }
 
-        async function createBoard() {
-            const name = document.getElementById('new-board-name').value.trim();
-            const title = document.getElementById('new-board-title').value.trim();
-            const type = document.getElementById('new-board-type').value;
+        // Deploy new Board structures
+        document.getElementById('createBoardForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('boardName').value.trim();
+            const title = document.getElementById('boardTitle').value.trim();
+            const type = document.getElementById('boardType').value;
 
-            if(!name || !title) return alert("Fill out input fields cleanly.");
-
-            const response = await fetch('/api/boards/create', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-admin-password': masterPass },
-                body: JSON.stringify({ name, title, type })
-            });
-            
-            const result = await response.json();
-            if(result.error) alert(result.error);
-            else {
-                document.getElementById('new-board-name').value = '';
-                document.getElementById('new-board-title').value = '';
-                refreshAdminDashboardView();
+            try {
+                const res = await fetch('/api/boards/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, title, type, password: getAuthPassword() })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    alert('Category board deployed successfully!');
+                    document.getElementById('createBoardForm').reset();
+                    synchroniseState();
+                } else {
+                    alert(data.error || 'Process execution error.');
+                }
+            } catch (err) {
+                alert('Connectivity loss running server routines.');
             }
-        }
+        });
 
-        async function deleteBoard(name) {
-            if(!confirm(`Are you absolutely sure you want to delete /${name}/ and wipe its entire file asset inventory?`)) return;
+        // Delete structural Board category targets
+        document.getElementById('deleteBoardForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('deleteBoardSelector').value;
+            if (!name) return alert('Select target node category.');
 
-            await fetch('/api/boards/delete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-admin-password': masterPass },
-                body: JSON.stringify({ name })
-            });
-            refreshAdminDashboardView();
-        }
+            if (!confirm(`Are you completely sure you want to permanently delete board category "${name}"? This deletes ALL files associated with it.`)) return;
 
-        async function uploadContentAsset() {
-            const board = document.getElementById('upload-board-target').value;
-            const customId = document.getElementById('upload-custom-id').value;
-            const fileInput = document.getElementById('upload-file-field');
-            
-            const progressContainer = document.getElementById('progress-container');
-            const progressBar = document.getElementById('progress-bar');
+            try {
+                const res = await fetch('/api/boards/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, password: getAuthPassword() })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    alert('Board category tracking dropped.');
+                    synchroniseState();
+                } else {
+                    alert(data.error || 'Decommission steps failed.');
+                }
+            } catch (err) {
+                alert('System transaction interrupted.');
+            }
+        });
 
-            if (!board || fileInput.files.length === 0) return alert("Missing upload fields parameters.");
+        // Direct Fast-Upload Controller Execution Task Hook (Unconstrained sizes)
+        document.getElementById('adminDirectUploadForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const board = document.getElementById('uploadBoardSelector').value;
+            const customId = document.getElementById('customPostId').value;
+            const files = document.getElementById('directMediaFiles').files;
+            const statusMsg = document.getElementById('adminUploadStatusMsg');
+            const progBox = document.getElementById('adminUploadProgressBox');
+            const progFill = document.getElementById('adminUploadProgressFill');
+            const progText = document.getElementById('adminUploadProgressText');
+
+            if (!board || files.length === 0) {
+                statusMsg.style.color = '#ff4a4a';
+                statusMsg.textContent = 'Missing core upload assets.';
+                return;
+            }
 
             const formData = new FormData();
             formData.append('board', board);
             formData.append('customId', customId);
-            formData.append('password', masterPass);
-
-            for (let i = 0; i < fileInput.files.length; i++) {
-                formData.append('media', fileInput.files[i]);
+            formData.append('password', getAuthPassword());
+            for (let i = 0; i < files.length; i++) {
+                formData.append('media', files[i]);
             }
 
-            progressContainer.style.display = 'block';
-            progressBar.style.width = '0%';
-            progressBar.textContent = '0%';
+            statusMsg.textContent = '';
+            progBox.style.display = 'block';
+            progFill.style.width = '0%';
+            progText.textContent = '0%';
 
             const xhr = new XMLHttpRequest();
             xhr.open('POST', '/api/posts/upload', true);
-            xhr.setRequestHeader('x-admin-password', masterPass);
 
-            xhr.upload.onprogress = function (e) {
-                if (e.lengthComputable) {
-                    const percentage = Math.round((e.loaded / e.total) * 100);
-                    progressBar.style.width = percentage + '%';
-                    progressBar.textContent = percentage + '%';
+            xhr.upload.addEventListener('progress', (event) => {
+                if (event.lengthComputable) {
+                    const pct = Math.round((event.loaded / event.total) * 100);
+                    progFill.style.width = pct + '%';
+                    progText.textContent = pct + '%';
                 }
-            };
+            });
 
             xhr.onload = function () {
-                progressContainer.style.display = 'none';
-                
                 if (xhr.status === 200) {
-                    const result = JSON.parse(xhr.responseText);
-                    if (result.warnings) {
-                        alert("Upload complete with some issues:\n" + result.warnings.join('\n'));
-                    }
-                    fileInput.value = '';
-                    document.getElementById('upload-custom-id').value = '';
-                    refreshAdminDashboardView();
+                    const response = JSON.parse(xhr.responseText);
+                    statusMsg.style.color = '#4caf50';
+                    let text = response.message || 'Direct bypass upload succeeded!';
+                    if (response.warnings) text += '\nWarnings:\n' + response.warnings.join('\n');
+                    statusMsg.textContent = text;
+                    document.getElementById('adminDirectUploadForm').reset();
+                    synchroniseState();
                 } else {
-                    try {
-                        const result = JSON.parse(xhr.responseText);
-                        alert(result.error || "An unknown file process error occurred.");
-                    } catch(e) {
-                        alert("Server returned error status code: " + xhr.status);
-                    }
+                    const response = JSON.parse(xhr.responseText);
+                    statusMsg.style.color = '#ff4a4a';
+                    statusMsg.textContent = response.error || 'Server error encountered processing bypassing routine.';
                 }
-            };
-
-            xhr.onerror = function () {
-                progressContainer.style.display = 'none';
-                alert("Network connection error during transfer event.");
             };
 
             xhr.send(formData);
-        }
+        });
 
-        async function deletePostAssetById() {
-            const idInput = document.getElementById('delete-post-id');
-            const id = idInput.value.trim();
+        // Clear active items off system registers completely
+        document.getElementById('deletePostForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('deletePostId').value.trim();
+            const msgNode = document.getElementById('deletePostStatusMsg');
+            msgNode.textContent = '';
 
-            if (!id) return alert("Please specify an Asset ID to delete.");
-            if (!confirm(`Remove item allocation ID: #${id}?`)) return;
-
-            const response = await fetch('/api/posts/delete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-admin-password': masterPass },
-                body: JSON.stringify({ id })
-            });
-
-            const result = await response.json();
-            if (result.error) {
-                alert(result.error);
-            } else {
-                alert(`Successfully removed Post Asset #${id}`);
-                idInput.value = '';
-                refreshAdminDashboardView();
+            try {
+                const res = await fetch('/api/posts/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, password: getAuthPassword() })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    msgNode.style.color = '#4caf50';
+                    msgNode.textContent = `Post ID ${id} wiped clean from tracking registers.`;
+                    document.getElementById('deletePostForm').reset();
+                    synchroniseState();
+                } else {
+                    msgNode.style.color = '#ff4a4a';
+                    msgNode.textContent = data.error || 'Post removal failed.';
+                }
+            } catch (err) {
+                msgNode.style.color = '#ff4a4a';
+                msgNode.textContent = 'Network execution interrupt during post removal.';
             }
-        }
+        });
+
+        // Establish session event wire hooks
+        document.getElementById('verifyCredentialsBtn').addEventListener('click', runInitialValidation);
     </script>
 </body>
 </html>
