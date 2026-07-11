@@ -39,7 +39,13 @@ const storage = multer.diskStorage({
         cb(null, uniqueSuffix + path.extname(file.originalname));
     }
 });
-const upload = multer({ storage: storage });
+
+// Separate instances: one unrestricted for admins, one size-capped for public users
+const adminUpload = multer({ storage: storage });
+const userUpload = multer({ 
+    storage: storage,
+    limits: { fileSize: 20 * 1024 * 1024 } // Cap public uploads at exactly 20MB per file
+});
 
 // Helper to read/write database state
 const readDB = () => JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
@@ -62,8 +68,17 @@ app.get('/api/data', (req, res) => {
     res.json(readDB());
 });
 
-// Public Route: Users upload files to a board for approval queue
-app.post('/api/posts/submit', upload.array('media'), (req, res) => {
+// Public Route: Users upload files to a board for approval queue (with 20MB single-file ceiling)
+app.post('/api/posts/submit', (req, res, next) => {
+    userUpload.array('media')(req, res, (err) => {
+        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ error: 'File too large! User uploads are strictly limited to a maximum of 20MB per asset.' });
+        } else if (err) {
+            return res.status(400).json({ error: 'An error occurred processing your file upload structure.' });
+        }
+        next();
+    });
+}, (req, res) => {
     const { board } = req.body;
     if (!board || !req.files || req.files.length === 0) {
         return res.status(400).json({ error: 'Missing core upload assets' });
@@ -142,8 +157,8 @@ app.post('/api/boards/delete', requireAuth, (req, res) => {
     res.json({ success: true });
 });
 
-// Admin Route: Direct upload bypassing the approval queue
-app.post('/api/posts/upload', requireAuth, upload.array('media'), (req, res) => {
+// Admin Route: Direct upload bypassing the approval queue (Unrestricted size limit)
+app.post('/api/posts/upload', requireAuth, adminUpload.array('media'), (req, res) => {
     const { board, customId } = req.body;
     if (!board || !req.files || req.files.length === 0) {
         return res.status(400).json({ error: 'Missing core upload assets' });
