@@ -4,269 +4,278 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
-const PORT = process.env.PORT || 10000; // Updated for production Render binding
-const DB_FILE = path.join(__dirname, 'db.json');
+const PORT = process.env.PORT || 3000;
+
+// Master Admin Password configuration
+const ADMIN_PASSWORD = 'fish';
+
+app.use(express.json());
+app.use(express.static('public'));
+app.use('/uploads', express.static('uploads'));
+
+// Ensure storage paths exist
+const DATA_FILE = path.join(__dirname, 'data.json');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 
-// Ensure database and upload directory exist
-if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
-if (!fs.existsSync(DB_FILE)) {
-    fs.writeFileSync(DB_FILE, JSON.stringify({ boards: {}, posts: [], pendingPosts: [] }, null, 2));
-} else {
-    // Migration: ensure pendingPosts array exists in old files
+if (!fs.existsSync(UPLOADS_DIR)) {
+    fs.mkdirSync(UPLOADS_DIR);
+}
+
+// In-memory structural database fallback state
+let db = {
+    boards: {},
+    posts: [],
+    pendingPosts: []
+};
+
+// Load existing data on startup
+if (fs.existsSync(DATA_FILE)) {
     try {
-        const db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-        if (!db.pendingPosts) {
-            db.pendingPosts = [];
-            fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
-        }
+        db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+        // Safety initialization checks
+        if (!db.boards) db.boards = {};
+        if (!db.posts) db.posts = [];
+        if (!db.pendingPosts) db.pendingPosts = [];
     } catch (e) {
-        console.error("Database migration check failed:", e);
+        console.error("Error loading data file, using fresh state:", e);
     }
 }
 
-// Express Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(__dirname));
-app.use('/uploads', express.static(UPLOADS_DIR));
+function saveDatabase() {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(db, null, 2), 'utf8');
+}
 
-// Storage configuration for Multer
+// Storage setup for file uploads
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+    destination: (req, file, cb) => {
+        cb(null, UPLOADS_DIR);
+    },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         cb(null, uniqueSuffix + path.extname(file.originalname));
     }
 });
+const upload = multer({ storage: storage });
 
-// Separate instances: one unrestricted for admins, one size-capped for public users
-const adminUpload = multer({ storage: storage });
-const userUpload = multer({ 
-    storage: storage,
-    limits: { fileSize: 20 * 1024 * 1024 } // Cap public uploads at exactly 20MB per file
-});
-
-// Helper to read/write database state
-const readDB = () => JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-const writeDB = (data) => fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
-
-// Auth Middleware
-const requireAuth = (req, res, next) => {
-    const password = req.headers['x-admin-password'] || req.body.password;
-    if (password === 'fish') {
-        next();
-    } else {
-        res.status(401).json({ error: 'Unauthorized: Invalid Password' });
+// Helper to determine media file category
+function getMediaType(filename) {
+    const ext = path.extname(filename).toLowerCase();
+    if (['.mp4', '.webm', '.ogg', '.mov'].includes(ext)) {
+        return 'video';
     }
-};
+    return 'image';
+}
 
-/* --- Public API Routes --- */
+// ================= ADMIN VALIDATION MIDDLEWARE =================
+function requireAdminAuth(req, res, next) {
+    // Check both standard body parameters and explicit request headers
+    const providedPassword = req.headers['x-admin-password'] || req.body.password;
+    
+    if (!providedPassword || providedPassword !== ADMIN_PASSWORD) {
+        return res.status(401).json({ success: false, error: 'Unauthorized: Invalid master system password.' });
+    }
+    next();
+}
 
-// Get all structural data
-app.get('/api/data', (req, res) => {
-    res.json(readDB());
+// ================= PUBLIC ROUTES =================
+
+// Public data fetch route (Strips pending post details from unauthenticated public feeds)
+app.get('/api/public/data', (req, res) => {
+    res.json({
+        boards: db.boards,
+        posts: db.posts
+    });
 });
 
-// Public Route: Users upload files to a board for approval queue (with 20MB single-file ceiling)
-app.post('/api/posts/submit', (req, res, next) => {
-    userUpload.array('media')(req, res, (err) => {
-        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-            return res.status(400).json({ error: 'File too large! User uploads are strictly limited to a maximum of 20MB per asset.' });
-        } else if (err) {
-            return res.status(400).json({ error: 'An error occurred processing your file upload structure.' });
-        }
-        next();
-    });
-}, (req, res) => {
+// User Public Submission Route
+app.post('/api/public/upload', upload.single('media'), (req, res) => {
     const { board } = req.body;
-    if (!board || !req.files || req.files.length === 0) {
-        return res.status(400).json({ error: 'Missing core upload assets' });
+    if (!board || !db.boards[board]) {
+        if (req.file) fs.unlinkSync(req.file.path);
+        return res.status(400).json({ success: false, error: 'Target board category does not exist.' });
+    }
+    if (!req.file) {
+        return res.status(400).json({ success: false, error: 'No media file asset provided.' });
     }
 
-    const db = readDB();
-    const addedSubmissions = [];
+    const newPending = {
+        id: String(Date.now()),
+        board: board,
+        src: `/uploads/${req.file.filename}`,
+        type: getMediaType(req.file.filename)
+    };
 
-    req.files.forEach((file) => {
-        const postId = String(Math.floor(100000 + Math.random() * 900000));
-        const fileExt = path.extname(file.filename).toLowerCase();
-        const isVideo = ['.mp4', '.webm', '.ogg', '.mov'].includes(fileExt);
-        const type = isVideo ? 'video' : 'image';
+    db.pendingPosts.push(newPending);
+    saveDatabase();
 
-        const newSubmission = {
-            id: postId,
-            board: board,
-            src: `uploads/${file.filename}`,
-            type: type
-        };
-
-        db.pendingPosts.push(newSubmission);
-        addedSubmissions.push(newSubmission);
-    });
-
-    writeDB(db);
-
-    res.json({ 
-        success: true, 
-        message: `Successfully submitted ${addedSubmissions.length} file(s) for admin approval.`
-    });
+    res.json({ success: true, message: 'Submission uploaded successfully and is awaiting admin approval.' });
 });
 
-/* --- Admin Protected API Routes --- */
 
-// Create Board
-app.post('/api/boards/create', requireAuth, (req, res) => {
+// ================= AUTHENTICATED ADMIN ROUTES =================
+
+// Secured master database fetch route
+app.get('/api/data', requireAdminAuth, (req, res) => {
+    res.json(db);
+});
+
+// Queue Process Handler (Approve / Reject Action)
+app.post('/api/posts/approve', requireAdminAuth, (req, res) => {
+    const { id, action } = req.body;
+    
+    const itemIndex = db.pendingPosts.findIndex(p => p.id === String(id));
+    if (itemIndex === -1) {
+        return res.status(404).json({ success: false, error: 'Target submission item not found inside the queue.' });
+    }
+
+    const targetItem = db.pendingPosts[itemIndex];
+
+    // Remove item completely from the pending queue array
+    db.pendingPosts.splice(itemIndex, 1);
+
+    if (action === 'approve') {
+        // Transfer historical item directly into the live display list
+        db.posts.push(targetItem);
+        saveDatabase();
+        return res.json({ success: true, message: 'Item approved and deployed to live feed.' });
+    } else {
+        // Action is rejection: wipe file tracking off storage systems
+        const absolutePath = path.join(__dirname, targetItem.src);
+        if (fs.existsSync(absolutePath)) {
+            fs.unlinkSync(absolutePath);
+        }
+        saveDatabase();
+        return res.json({ success: true, message: 'Submission rejected and file deleted from storage.' });
+    }
+});
+
+// Deploy Board Category
+app.post('/api/boards/create', requireAdminAuth, (req, res) => {
     const { name, title, type } = req.body;
-    if (!name || !title || !type) return res.status(400).json({ error: 'Missing fields' });
-    
-    const db = readDB();
-    if (db.boards[name]) return res.status(400).json({ error: 'Board already exists' });
-    
-    db.boards[name] = { title, type };
-    writeDB(db);
-    res.json({ success: true });
+    const cleanName = name.trim().toLowerCase().replace(/\s+/g, '');
+
+    if (!cleanName || !title) {
+        return res.status(400).json({ success: false, error: 'Missing required configuration parameters.' });
+    }
+    if (db.boards[cleanName]) {
+        return res.status(400).json({ success: false, error: 'A board with that handle name already exists.' });
+    }
+
+    db.boards[cleanName] = {
+        title: title,
+        type: type || 'mixed'
+    };
+    saveDatabase();
+
+    res.json({ success: true, message: 'New asset board category successfully created.' });
 });
 
-// Delete Board
-app.post('/api/boards/delete', requireAuth, (req, res) => {
+// Decommission Board Category
+app.post('/api/boards/delete', requireAdminAuth, (req, res) => {
     const { name } = req.body;
-    const db = readDB();
-    
-    if (db.boards[name]) {
-        delete db.boards[name];
-        
-        // Remove associated files from disk before clearing references
-        const postsToRemove = db.posts.filter(post => post.board === name);
-        postsToRemove.forEach(post => {
-            const filePath = path.join(__dirname, post.src);
-            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-        });
 
-        // Clear references from pending queue as well if a board is deleted
-        const pendingToRemove = db.pendingPosts.filter(post => post.board === name);
-        pendingToRemove.forEach(post => {
-            const filePath = path.join(__dirname, post.src);
-            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-        });
-
-        // Orphan clean-up: clear out associated posts from json array
-        db.posts = db.posts.filter(post => post.board !== name);
-        db.pendingPosts = db.pendingPosts.filter(post => post.board !== name);
-        writeDB(db);
+    if (!name || !db.boards[name]) {
+        return res.status(400).json({ success: false, error: 'Target destination board does not exist.' });
     }
-    res.json({ success: true });
+
+    // Erase all live posts associated with this board, cleaning up physical files
+    const remainingPosts = [];
+    db.posts.forEach(post => {
+        if (post.board === name) {
+            const filePath = path.join(__dirname, post.src);
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        } else {
+            remainingPosts.push(post);
+        }
+    });
+    db.posts = remainingPosts;
+
+    // Erase all pending items associated with this board, cleaning up physical files
+    const remainingPending = [];
+    db.pendingPosts.forEach(post => {
+        if (post.board === name) {
+            const filePath = path.join(__dirname, post.src);
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        } else {
+            remainingPending.push(post);
+        }
+    });
+    db.pendingPosts = remainingPending;
+
+    // Drop tracking reference record object completely
+    delete db.boards[name];
+    saveDatabase();
+
+    res.json({ success: true, message: 'Board category and all containing files deleted.' });
 });
 
-// Admin Route: Direct upload bypassing the approval queue (Unrestricted size limit)
-app.post('/api/posts/upload', requireAuth, adminUpload.array('media'), (req, res) => {
+// Direct Fast Upload Bypass Route (Supports multiple files simultaneously)
+app.post('/api/posts/upload', requireAdminAuth, upload.array('media'), (req, res) => {
     const { board, customId } = req.body;
-    if (!board || !req.files || req.files.length === 0) {
-        return res.status(400).json({ error: 'Missing core upload assets' });
+
+    if (!board || !db.boards[board]) {
+        if (req.files) req.files.forEach(f => fs.unlinkSync(f.path));
+        return res.status(400).json({ success: false, error: 'Target collection board handle does not exist.' });
+    }
+    if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ success: false, error: 'No files were provided for processing.' });
     }
 
-    const db = readDB();
-    const errors = [];
-    const addedPosts = [];
+    const totalUploaded = req.files.length;
+    const warnings = [];
 
     req.files.forEach((file, index) => {
-        let postId = customId ? customId.trim() : '';
-        
-        if (!postId) {
-            postId = String(Math.floor(100000 + Math.random() * 900000));
-        } else if (req.files.length > 1) {
-            postId = `${postId}-${index + 1}`;
-        }
+        // If a custom ID is provided, use it for the first file only; generate unique ones otherwise
+        const definitiveId = (customId && index === 0) ? String(customId) : String(Date.now() + index + Math.floor(Math.random() * 100));
 
-        // Prevent duplicate IDs across active and pending posts
-        if (db.posts.some(p => p.id === postId) || db.pendingPosts.some(p => p.id === postId)) {
-            errors.push(`Post ID ${postId} already exists. Skipping file: ${file.originalname}`);
-            const filePath = path.join(__dirname, 'uploads', file.filename);
-            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        // Check for duplicates inside the live tracking space
+        const duplicateCheck = db.posts.some(p => p.id === definitiveId);
+        if (duplicateCheck) {
+            warnings.push(`File "${file.originalname}" skipped because ID "${definitiveId}" is already taken.`);
+            fs.unlinkSync(file.path);
             return;
         }
 
-        const fileExt = path.extname(file.filename).toLowerCase();
-        const isVideo = ['.mp4', '.webm', '.ogg', '.mov'].includes(fileExt);
-        const type = isVideo ? 'video' : 'image';
-
-        const newPost = {
-            id: postId,
+        db.posts.push({
+            id: definitiveId,
             board: board,
-            src: `uploads/${file.filename}`,
-            type: type
-        };
-
-        db.posts.push(newPost);
-        addedPosts.push(newPost);
+            src: `/uploads/${file.filename}`,
+            type: getMediaType(file.filename)
+        });
     });
 
-    writeDB(db);
+    saveDatabase();
 
-    if (errors.length > 0 && addedPosts.length === 0) {
-        return res.status(400).json({ error: errors.join('\n') });
-    }
-
-    res.json({ 
-        success: true, 
-        message: `Successfully uploaded ${addedPosts.length} file(s).`,
-        warnings: errors.length > 0 ? errors : undefined
+    res.json({
+        success: true,
+        message: `Successfully processed and published ${totalUploaded - warnings.length} item(s) direct to feed.`,
+        warnings: warnings.length > 0 ? warnings : null
     });
 });
 
-// Admin Route: Process Action on Pending Item (Approve / Reject)
-app.post('/api/posts/approve', requireAuth, (req, res) => {
-    const { id, action } = req.body; // action can be 'approve' or 'reject'
-    const db = readDB();
-    const pendingIndex = db.pendingPosts.findIndex(p => p.id === String(id).trim());
-
-    if (pendingIndex === -1) {
-        return res.status(404).json({ error: 'Pending submission ID not found' });
-    }
-
-    const post = db.pendingPosts[pendingIndex];
-
-    if (action === 'approve') {
-        // Enforce unique ID safety switch
-        if (db.posts.some(p => p.id === post.id)) {
-            post.id = String(Math.floor(100000 + Math.random() * 900000));
-        }
-        db.posts.push(post);
-        db.pendingPosts.splice(pendingIndex, 1);
-    } else if (action === 'reject') {
-        const filePath = path.join(__dirname, post.src);
-        if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-        }
-        db.pendingPosts.splice(pendingIndex, 1);
-    } else {
-        return res.status(400).json({ error: 'Invalid process parameters.' });
-    }
-
-    writeDB(db);
-    res.json({ success: true, action: action });
-});
-
-// Delete Live Content Item
-app.post('/api/posts/delete', requireAuth, (req, res) => {
+// Wipe Active Item From Server Live Lists Entirely
+app.post('/api/posts/delete', requireAdminAuth, (req, res) => {
     const { id } = req.body;
-    const db = readDB();
-    const postIndex = db.posts.findIndex(p => p.id === String(id).trim());
 
-    if (postIndex !== -1) {
-        const post = db.posts[postIndex];
-        const filePath = path.join(__dirname, post.src);
-        
-        if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-        }
-        
-        db.posts.splice(postIndex, 1);
-        writeDB(db);
-        return res.json({ success: true });
+    const itemIndex = db.posts.findIndex(p => p.id === String(id));
+    if (itemIndex === -1) {
+        return res.status(404).json({ success: false, error: 'Post ID string not found in database records.' });
     }
-    res.status(404).json({ error: 'Post ID not found' });
+
+    const targetPost = db.posts[itemIndex];
+    
+    // Wipe track file structure references off the operating disk
+    const absolutePath = path.join(__dirname, targetPost.src);
+    if (fs.existsSync(absolutePath)) {
+        fs.unlinkSync(absolutePath);
+    }
+
+    db.posts.splice(itemIndex, 1);
+    saveDatabase();
+
+    res.json({ success: true, message: 'Post dropped off global track listings.' });
 });
 
 app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
+    console.log(`Server executing live processes seamlessly at port http://localhost:${PORT}`);
 });
