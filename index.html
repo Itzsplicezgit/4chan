@@ -326,7 +326,6 @@
         // Initialize state engine data sync
         async function loadPlatformState() {
             try {
-                // CHANGED: Use public API route to avoid authorization errors
                 const res = await fetch('/api/public/data');
                 if (!res.ok) throw new Error("Data retrieval bad sequence");
                 localStateCache = await res.json();
@@ -362,7 +361,6 @@
                 
                 a.addEventListener('click', (e) => {
                     e.preventDefault();
-                    // Toggle selection filter matching requirements
                     document.querySelectorAll('.board-item-link').forEach(el => el.classList.remove('active'));
                     if (activeBoardFilter === key) {
                         activeBoardFilter = null;
@@ -397,10 +395,8 @@
             const grid = document.getElementById('mainDynamicFeedGrid');
             grid.innerHTML = '';
             
-            // Disconnect old observers before rebuilding elements
             mediaIntersectionObserver.disconnect();
 
-            // Filter posts array baseline data down to correct set
             const targetItems = localStateCache.posts.filter(post => {
                 return !activeBoardFilter || post.board === activeBoardFilter;
             });
@@ -417,20 +413,16 @@
                 card.dataset.src = item.src;
                 card.dataset.type = item.type;
 
-                // Inner media bounding element
                 const mediaBox = document.createElement('div');
                 mediaBox.className = 'media-container';
                 card.appendChild(mediaBox);
 
-                // Meta values text details
                 const meta = document.createElement('div');
                 meta.className = 'card-meta';
                 meta.innerHTML = `ID: <span>${item.id}</span> inside <span>/${item.board}/</span>`;
                 card.appendChild(meta);
 
                 grid.appendChild(card);
-                
-                // Track element inside IntersectionObserver container framework
                 mediaIntersectionObserver.observe(card);
             });
         }
@@ -445,7 +437,6 @@
 
                 if (entry.isIntersecting) {
                     card.classList.add('active-view');
-                    // Check if element contents are missing before re-building tags
                     if (mediaBox.children.length === 0) {
                         if (type === 'video') {
                             const video = document.createElement('video');
@@ -456,20 +447,17 @@
                         } else {
                             const img = document.createElement('img');
                             img.src = src;
-                            img.shadowRoot
-                            img.src = src;
                             mediaBox.appendChild(img);
                         }
                     }
                 } else {
                     card.classList.remove('active-view');
-                    // Clear inner node definitions completely to liberate DOM rendering assets
                     mediaBox.innerHTML = '';
                 }
             });
         }, {
-            root: null, // screen viewport
-            rootMargin: '300px 0px 300px 0px', // Buffer zone allows smooth container pre-render
+            root: null,
+            rootMargin: '300px 0px 300px 0px',
             threshold: 0.01
         });
 
@@ -496,7 +484,6 @@
             progText.textContent = '0%';
 
             const xhr = new XMLHttpRequest();
-            // CHANGED: Point endpoint directly to standard public upload route
             xhr.open('POST', '/api/public/upload', true);
 
             xhr.upload.addEventListener('progress', (event) => {
@@ -508,6 +495,9 @@
             });
 
             xhr.onload = function () {
+                // Remove/hide the 100% progress bar box when upload routine completely processes
+                progBox.style.display = 'none';
+
                 if (xhr.status === 200) {
                     statusMsg.style.color = '#ffffff';
                     statusMsg.textContent = 'Post submitted into queue for admin approval validation.';
@@ -525,10 +515,15 @@
                 }
             };
 
+            xhr.onerror = function() {
+                progBox.style.display = 'none';
+                statusMsg.style.color = '#ffffff';
+                statusMsg.textContent = 'Network error occurred during execution.';
+            };
+
             xhr.send(formData);
         });
 
-        // Initialize view states execution
         window.addEventListener('DOMContentLoaded', loadPlatformState);
     </script>
 </body>
