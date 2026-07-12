@@ -745,7 +745,6 @@
 
             const boardMeta = localStateCache.boards[board];
             const formData = new FormData();
-            formData.append('board', board);
 
             let uploadEndpoint = '/api/public/upload';
 
@@ -760,11 +759,13 @@
                 }
                 
                 uploadEndpoint = '/api/posts/chat';
+                formData.append('room', board);
                 formData.append('message', textInput.value.trim());
             } else {
                 const fileInputEl = document.getElementById('publicMediaFile');
                 const fileInput = fileInputEl ? fileInputEl.files[0] : null;
                 if (!fileInput) return;
+                formData.append('node', board);
                 formData.append('media', fileInput);
             }
 
@@ -776,71 +777,40 @@
             const xhr = new XMLHttpRequest();
             xhr.open('POST', uploadEndpoint, true);
 
-            xhr.upload.addEventListener('progress', (event) => {
+            xhr.upload.addEventListener('progress', function(event) {
                 if (event.lengthComputable) {
-                    const pct = Math.round((event.loaded / event.total) * 100);
-                    progFill.style.width = pct + '%';
-                    progText.textContent = pct + '%';
+                    const percent = Math.round((event.loaded / event.total) * 100);
+                    progFill.style.width = percent + '%';
+                    progText.textContent = percent + '%';
                 }
             });
 
-            xhr.onload = function () {
+            xhr.addEventListener('load', function() {
                 progBox.style.display = 'none';
-
-                if (xhr.status === 200 || xhr.status === 201) {
+                if (xhr.status >= 200 && xhr.status < 300) {
                     statusMsg.style.color = '#ffffff';
-                    statusMsg.textContent = 'Content broadcast entry submitted into context queues successfully.';
-                    document.getElementById('publicSubmissionForm').reset();
-                    adjustFormFieldsForBoardType(board);
-                    
-                    localStorage.setItem('darkchan_last_upload', Date.now().toString());
+                    statusMsg.textContent = 'Submission successful!';
+                    localStorage.setItem('darkchan_last_upload', Date.now());
                     checkClientCooldown();
                     loadPlatformState();
+                    document.getElementById('publicSubmissionForm').reset();
+                    adjustFormFieldsForBoardType(document.getElementById('submitTargetBoard').value);
                 } else {
-                    try {
-                        const errData = JSON.parse(xhr.responseText);
-                        statusMsg.style.color = '#ffffff';
-                        
-                        if (xhr.status === 429 && errData.error) {
-                            const match = errData.error.match(/\d+/);
-                            if (match) {
-                                const totalSeconds = parseInt(match[0], 10);
-                                const mins = Math.floor(totalSeconds / 60);
-                                const secs = totalSeconds % 60;
-                                statusMsg.textContent = `Please wait ${mins}:${secs < 10 ? '0' : ''}${secs} until next upload`;
-                            } else {
-                                statusMsg.textContent = errData.error;
-                            }
-                            
-                            if (!localStorage.getItem('darkchan_last_upload')) {
-                                localStorage.setItem('darkchan_last_upload', Date.now().toString());
-                                checkClientCooldown();
-                            }
-                        } else {
-                            statusMsg.textContent = errData.error || 'Server error processing queue ingestion.';
-                        }
-                    } catch(e) {
-                        statusMsg.style.color = '#ffffff';
-                        statusMsg.textContent = 'Error processing upload parameters.';
-                    }
+                    statusMsg.style.color = '#cf6679';
+                    statusMsg.textContent = 'Error: ' + xhr.responseText;
                 }
-            };
+            });
 
-            xhr.onerror = function() {
+            xhr.addEventListener('error', function() {
                 progBox.style.display = 'none';
-                statusMsg.style.color = '#ffffff';
-                statusMsg.textContent = 'Network error occurred during execution.';
-            };
+                statusMsg.style.color = '#cf6679';
+                statusMsg.textContent = 'Network transmission failure.';
+            });
 
             xhr.send(formData);
         });
 
-        window.addEventListener('DOMContentLoaded', () => {
-            loadPlatformState();
-            bindFileInputListener();
-        });
-        
-        setInterval(loadPlatformState, 10000);
+        window.addEventListener('DOMContentLoaded', loadPlatformState);
     </script>
 </body>
 </html>
