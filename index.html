@@ -358,7 +358,8 @@
             if (fileEl) {
                 fileEl.addEventListener('change', function(e) {
                     const fileName = e.target.files[0] ? e.target.files[0].name : 'No file selected';
-                    document.getElementById('fileChosenFeedback').textContent = fileName;
+                    const feedbackEl = document.getElementById('fileChosenFeedback');
+                    if (feedbackEl) feedbackEl.textContent = fileName;
                 });
             }
         }
@@ -672,7 +673,8 @@
                 // Pass text string body elements mapping parameters safely
                 formData.append('message', textInput.value.trim());
             } else {
-                const fileInput = document.getElementById('publicMediaFile').files[0];
+                const fileInputEl = document.getElementById('publicMediaFile');
+                const fileInput = fileInputEl ? fileInputEl.files[0] : null;
                 if (!fileInput) return;
                 formData.append('media', fileInput);
             }
