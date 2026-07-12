@@ -1,0 +1,1 @@
+“I, Cristian, give Copilot full permission to reproduce and modify all HTML, CSS, JS, and other files from my GitHub repo.”
