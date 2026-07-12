@@ -611,7 +611,6 @@
                 card.dataset.src = item.src || '';
                 card.dataset.type = item.type;
                 card.dataset.msg = item.message || '';
-                card.dataset.thumb = item.thumbnail || '';
 
                 const contentBox = document.createElement('div');
                 contentBox.className = (item.type === 'text') ? 'chat-text-container' : 'media-container';
@@ -663,7 +662,6 @@
                 const type = card.dataset.type;
                 const src = card.dataset.src;
                 const msg = card.dataset.msg;
-                const thumb = card.dataset.thumb;
                 
                 const contentBox = card.querySelector('.media-container, .chat-text-container');
                 if (!contentBox) return;
@@ -674,49 +672,13 @@
                         if (type === 'text') {
                             contentBox.textContent = msg;
                         } else if (type === 'video') {
-                            if (thumb) {
-                                const imgThumb = document.createElement('img');
-                                imgThumb.src = thumb;
-                                imgThumb.style.cursor = 'pointer';
-                                imgThumb.title = "Click to run media stream playback";
-                                
-                                imgThumb.addEventListener('click', () => {
-                                    contentBox.innerHTML = '';
-                                    const video = document.createElement('video');
-                                    video.src = src;
-                                    video.controls = true;
-                                    video.autoplay = true;
-                                    contentBox.appendChild(video);
-                                });
-                                contentBox.appendChild(imgThumb);
-                            } else {
-                                const videoThumb = document.createElement('video');
-                                videoThumb.src = src;
-                                videoThumb.muted = true;
-                                videoThumb.playsInline = true;
-                                videoThumb.style.cursor = 'pointer';
-                                videoThumb.title = "Click to run media stream playback";
-                                
-                                videoThumb.addEventListener('loadedmetadata', () => {
-                                    if (isFinite(videoThumb.duration)) {
-                                        videoThumb.currentTime = videoThumb.duration / 2;
-                                    }
-                                });
-
-                                videoThumb.addEventListener('seeked', function lockFrame() {
-                                    videoThumb.removeEventListener('seeked', lockFrame);
-                                });
-
-                                videoThumb.addEventListener('click', () => {
-                                    contentBox.innerHTML = '';
-                                    const video = document.createElement('video');
-                                    video.src = src;
-                                    video.controls = true;
-                                    video.autoplay = true;
-                                    contentBox.appendChild(video);
-                                });
-                                contentBox.appendChild(videoThumb);
-                            }
+                            const video = document.createElement('video');
+                            video.src = src;
+                            video.controls = true;
+                            video.autoplay = true;
+                            video.muted = true;
+                            video.loop = true;
+                            contentBox.appendChild(video);
                         } else {
                             const img = document.createElement('img');
                             img.src = src;
