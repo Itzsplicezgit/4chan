@@ -2,845 +2,284 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DarkChan</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        body {
-            background-color: #121212;
-            color: #ffffff;
-            font-family: Arial, Helvetica, sans-serif;
-            font-size: 14px;
-            padding: 20px;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        h1 {
-            color: #ffffff;
-            font-size: 26px;
-            letter-spacing: -0.5px;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #2d2d2d;
-            padding-bottom: 10px;
-        }
-        h2 {
-            font-size: 16px;
-            color: #ffffff;
-            margin-bottom: 15px;
-            font-weight: bold;
-        }
-        a {
-            color: #ffffff;
-            text-decoration: none;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
-        .section-wrapper {
-            background-color: #1e1e1e;
-            border: 1px solid #2d2d2d;
-            border-radius: 6px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        .grid-layout {
-            display: grid;
-            grid-template-columns: 280px 1fr;
-            gap: 20px;
-        }
-        @media (max-width: 768px) {
-            .grid-layout { grid-template-columns: 1fr; }
-        }
-        
-        .board-list {
-            list-style: none;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        .board-item-link {
-            display: block;
-            padding: 10px;
-            background: #2d2d2d;
-            border: 1px solid #3d3d3d;
-            border-radius: 4px;
-            color: #ffffff !important;
-            font-weight: bold;
-            transition: background 0.15s;
-        }
-        .board-item-link:hover, .board-item-link.active {
-            background: #3d3d3d;
-            border-color: #ffffff;
-            text-decoration: none;
-        }
-        .board-item-link span {
-            font-size: 11px;
-            color: #aaaaaa;
-            display: block;
-            font-weight: normal;
-            margin-top: 2px;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: 12px;
-            color: #aaaaaa;
-            font-weight: bold;
-        }
-        input, select, button, textarea {
-            width: 100%;
-            background: #2d2d2d;
-            border: 1px solid #3d3d3d;
-            color: #ffffff;
-            padding: 10px;
-            border-radius: 4px;
-            font-size: 13px;
-            outline: none;
-        }
-        input:focus, select:focus, textarea:focus {
-            border-color: #ffffff;
-        }
-        textarea {
-            resize: vertical;
-            height: 80px;
-            font-family: inherit;
-        }
-        
-        .custom-file-upload {
-            position: relative;
-            display: inline-block;
-            width: 100%;
-        }
-        .custom-file-upload input[type="file"] {
-            position: absolute;
-            left: 0;
-            top: 0;
-            opacity: 0;
-            width: 100%;
-            height: 100%;
-            cursor: pointer;
-        }
-        .file-upload-btn {
-            background: #2d2d2d;
-            border: 1px solid #3d3d3d;
-            color: #ffffff;
-            padding: 10px;
-            border-radius: 4px;
-            font-size: 13px;
-            font-weight: bold;
-            text-align: center;
-            display: block;
-            transition: background 0.15s;
-        }
-        .custom-file-upload:hover .file-upload-btn {
-            background: #3d3d3d;
-            border-color: #aaaaaa;
-        }
-        .file-chosen-text {
-            margin-top: 5px;
-            font-size: 12px;
-            color: #aaaaaa;
-            font-style: italic;
-        }
-
-        button[type="submit"] {
-            background: #ffffff;
-            color: #121212;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-            transition: opacity 0.15s;
-            margin-top: 5px;
-        }
-        button[type="submit"]:hover { 
-            opacity: 0.9;
-        }
-        button[type="submit"]:disabled {
-            background: #2d2d2d;
-            color: #aaaaaa;
-            border: 1px solid #3d3d3d;
-            cursor: not-allowed;
-            opacity: 1;
-        }
-
-        .feed-grid {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 20px;
-            margin-top: 15px;
-        }
-        @media (max-width: 1024px) {
-            .feed-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        }
-        @media (max-width: 480px) {
-            .feed-grid { grid-template-columns: 1fr; }
-        }
-        
-        .feed-card {
-            background: #1e1e1e;
-            border: 1px solid #2d2d2d;
-            border-radius: 6px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            min-height: 260px; 
-            transition: border-color 0.15s;
-        }
-        .feed-card.active-view {
-            border-color: #3d3d3d;
-        }
-        .media-container {
-            width: 100%;
-            height: 200px;
-            background: #121212;
-            border-bottom: 1px solid #2d2d2d;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-        .media-container img, .media-container video {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-        .chat-text-container {
-            padding: 15px;
-            font-size: 13px;
-            line-height: 1.4;
-            color: #ffffff;
-            white-space: pre-wrap;
-            word-break: break-word;
-            overflow-y: auto;
-            height: 200px;
-            border-bottom: 1px solid #2d2d2d;
-        }
-        .card-meta {
-            padding: 12px;
-            font-size: 12px;
-            color: #aaaaaa;
-            margin-top: auto;
-        }
-        .card-meta span {
-            color: #ffffff;
-            font-weight: bold;
-        }
-
-        .progress-box {
-            display: none;
-            margin-top: 12px;
-            background: #2d2d2d;
-            border: 1px solid #3d3d3d;
-            border-radius: 4px;
-            overflow: hidden;
-            height: 20px;
-            position: relative;
-        }
-        .progress-fill {
-            height: 100%;
-            background: #ffffff;
-            width: 0%;
-        }
-        .progress-indicator-text {
-            position: absolute;
-            width: 100%;
-            text-align: center;
-            top: 0;
-            left: 0;
-            font-size: 12px;
-            line-height: 18px;
-            font-weight: bold;
-            color: #121212;
-        }
-        .status-msg {
-            margin-top: 12px;
-            font-size: 13px;
-            white-space: pre-line;
-            text-align: center;
-            font-weight: bold;
-        }
-        .counter-label {
-            font-size: 11px;
-            color: #aaaaaa;
-            text-align: right;
-            margin-top: 4px;
-        }
-        .counter-label.danger {
-            color: #cf6679;
-            font-weight: bold;
-        }
-
-        .pagination-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 1px solid #2d2d2d;
-        }
-        .pagination-btn {
-            width: auto;
-            padding: 8px 16px;
-            background: #2d2d2d;
-            border: 1px solid #3d3d3d;
-            color: #ffffff;
-            cursor: pointer;
-            font-weight: bold;
-            border-radius: 4px;
-            transition: background 0.15s;
-        }
-        .pagination-btn:hover:not(:disabled) {
-            background: #3d3d3d;
-            border-color: #ffffff;
-        }
-        .pagination-btn:disabled {
-            background: #1e1e1e;
-            color: #555555;
-            border-color: #2d2d2d;
-            cursor: not-allowed;
-        }
-        .pagination-info {
-            font-size: 13px;
-            color: #aaaaaa;
-        }
-    </style>
+    <title>DarkChan Admin</title>
 </head>
 <body>
 
-    <div class="container">
-        <h1>DarkChan</h1>
+    <!-- Auth Layer -->
+    <div id="login-form">
+        <h2>Enter Admin Password Faggot</h2>
+        <input type="password" id="admin-pass" placeholder="Password...">
+        <button onclick="login()">Access Panel</button>
+    </div>
 
-        <div class="grid-layout">
-            
-            <div class="sidebar-pane">
-                <div class="section-wrapper">
-                    <h2>Select a Board</h2>
-                    <ul class="board-list" id="alphabeticalBoardContainer">
-                        <li style="color:#aaaaaa; font-style:italic; padding:10px;">Loading Boards...</li>
-                    </ul>
-                </div>
-            </div>
+    <!-- Main Dashboard Pane (Hidden by Default) -->
+    <div id="admin-panel" style="display: none;">
+        <h1>DarkChan Management Terminal</h1>
+        <hr />
 
-            <div class="main-content-pane">
-                
-                <div class="section-wrapper" id="uploadSubmissionPanel">
-                    <h2 id="submissionPanelTitle">Submit Content</h2>
-                    <form id="publicSubmissionForm">
-                        <div class="grid-layout" style="grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 0;">
-                            <div class="form-group">
-                                <label for="submitTargetBoard">Target Destination Board</label>
-                                <select id="submitTargetBoard" required>
-                                    <option value="">Select Target...</option>
-                                </select>
-                            </div>
-                            
-                            <div class="form-group" id="dynamicInputContainer">
-                                <label id="inputControlLabel">Upload Media File</label>
-                                <div id="mediaInputWrapper" class="custom-file-upload">
-                                    <span class="file-upload-btn" id="customFileBtnText">Choose Image / Video</span>
-                                    <input type="file" id="publicMediaFile" accept="image/*,video/*" required>
-                                </div>
-                                <div class="file-chosen-text" id="fileChosenFeedback">No file selected</div>
-                            </div>
-                        </div>
-                        <button type="submit" id="submitFormButton">Submit to Moderation Queue</button>
-                    </form>
+        <!-- Board Management Section -->
+        <h2>Manage Boards</h2>
+        <form id="create-board-form" onsubmit="createBoard(event)">
+            <input type="text" id="board-name" placeholder="Unique Handle (e.g. memes)" required>
+            <input type="text" id="board-title" placeholder="Display Title" required>
+            <select id="board-type" required>
+                <option value="mixed">Mixed</option>
+                <option value="images">Images Only</option>
+                <option value="videos">Videos Only</option>
+                <option value="chat">Chat Lobby</option>
+            </select>
+            <button type="submit">Deploy Board</button>
+        </form>
 
-                    <div class="progress-box" id="submissionProgressBox">
-                        <div class="progress-fill" id="submissionProgressFill"></div>
-                        <div class="progress-indicator-text" id="submissionProgressText">0%</div>
-                    </div>
-                    <div class="status-msg" id="submissionStatusMsg"></div>
-                </div>
+        <h3>Active Boards</h3>
+        <ul id="boards-list"></ul>
+        <hr />
 
-                <div class="section-wrapper">
-                    <h2 id="currentFeedTitle">Global Shared Feed</h2>
-                    <div class="feed-grid" id="mainDynamicFeedGrid"></div>
-                    <div class="pagination-container" id="feedPaginationControls"></div>
-                </div>
+        <!-- Specific Item Moderation -->
+        <h2>Search & Destroy Post</h2>
+        <input type="text" id="search-post-id" placeholder="Enter Post ID...">
+        <button onclick="deletePostById()">Delete Permanently</button>
+        <hr />
 
-            </div>
-
+        <!-- Moderation Queue Component -->
+        <h2>Mod Queue (<span id="queue-count">0</span> remaining)</h2>
+        <div id="queue-container">
+            <p>No posts waiting for review.</p>
         </div>
     </div>
 
     <script>
-        let localStateCache = { boards: {}, posts: [] };
-        let activeBoardFilter = null;
-        let cooldownInterval = null;
-        const COOLDOWN_DURATION = 5 * 60 * 1000;
+        let currentPassword = '';
+        let pendingQueue = [];
+        let boardsCache = {}; // Keeps track of active boards locally for reordering computations
 
-        let currentPage = 1;
-        const itemsPerPage = 12;
-
-        function bindFileInputListener() {
-            const fileEl = document.getElementById('publicMediaFile');
-            if (fileEl) {
-                fileEl.addEventListener('change', function(e) {
-                    const fileName = e.target.files[0] ? e.target.files[0].name : 'No file selected';
-                    const feedbackEl = document.getElementById('fileChosenFeedback');
-                    if (feedbackEl) feedbackEl.textContent = fileName;
-                });
-            }
-        }
-
-        function adjustFormFieldsForBoardType(boardKey) {
-            const container = document.getElementById('dynamicInputContainer');
-            if (!boardKey || !localStateCache.boards[boardKey]) {
-                container.innerHTML = `
-                    <label>Upload Media File</label>
-                    <div class="custom-file-upload">
-                        <span class="file-upload-btn">Choose Image / Video</span>
-                        <input type="file" id="publicMediaFile" accept="image/*,video/*" required disabled>
-                    </div>
-                    <div class="file-chosen-text" id="fileChosenFeedback">Select a board target first</div>
-                `;
-                return;
-            }
-
-            const boardMeta = localStateCache.boards[boardKey];
-            if (boardMeta.type === 'chat') {
-                container.innerHTML = `
-                    <label for="chatMessageTextarea">Message Stream Input</label>
-                    <textarea id="chatMessageTextarea" placeholder="Type an anonymous broadcast text..." required></textarea>
-                    <div class="counter-label" id="chatWordCounter">0 / 200 words</div>
-                `;
-                
-                const textarea = document.getElementById('chatMessageTextarea');
-                textarea.addEventListener('input', () => {
-                    const words = textarea.value.trim().split(/\s+/).filter(Boolean).length;
-                    const counter = document.getElementById('chatWordCounter');
-                    const submitBtn = document.getElementById('submitFormButton');
-                    counter.textContent = `${words} / 200 words`;
-                    
-                    if (words > 200) {
-                        counter.className = "counter-label danger";
-                        submitBtn.disabled = true;
-                    } else {
-                        counter.className = "counter-label";
-                        submitBtn.disabled = false;
-                    }
-                });
-            } else {
-                container.innerHTML = `
-                    <label>Upload Media File</label>
-                    <div class="custom-file-upload">
-                        <span class="file-upload-btn" id="customFileBtnText">Choose Image / Video</span>
-                        <input type="file" id="publicMediaFile" accept="image/*,video/*" required>
-                    </div>
-                    <div class="file-chosen-text" id="fileChosenFeedback">No file selected</div>
-                `;
-                bindFileInputListener();
-                document.getElementById('submitFormButton').disabled = false;
-            }
-        }
-
-        document.getElementById('submitTargetBoard').addEventListener('change', function(e) {
-            adjustFormFieldsForBoardType(e.target.value);
-        });
-
-        function formatTimeLeft(ms) {
-            const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
-            const mins = Math.floor(totalSeconds / 60);
-            const secs = totalSeconds % 60;
-            return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-        }
-
-        function checkClientCooldown() {
-            const lastUploadTime = localStorage.getItem('darkchan_last_upload');
-            const statusMsg = document.getElementById('submissionStatusMsg');
-            const submitBtn = document.getElementById('submitFormButton');
+        function login() {
+            const passInput = document.getElementById('admin-pass').value;
+            if (!passInput) return alert('Enter a password');
+            currentPassword = passInput;
             
-            if (!lastUploadTime) return;
-
-            const timePassed = Date.now() - parseInt(lastUploadTime, 10);
-            if (timePassed < COOLDOWN_DURATION) {
-                submitBtn.disabled = true;
-                
-                if (cooldownInterval) clearInterval(cooldownInterval);
-                
-                cooldownInterval = setInterval(() => {
-                    const currentPassed = Date.now() - parseInt(lastUploadTime, 10);
-                    const remaining = COOLDOWN_DURATION - currentPassed;
-                    
-                    if (remaining <= 0) {
-                        clearInterval(cooldownInterval);
-                        submitBtn.disabled = false;
-                        statusMsg.textContent = '';
-                        localStorage.removeItem('darkchan_last_upload');
-                        const activeSel = document.getElementById('submitTargetBoard').value;
-                        adjustFormFieldsForBoardType(activeSel);
-                    } else {
-                        statusMsg.style.color = '#ffffff';
-                        statusMsg.textContent = `Please wait ${formatTimeLeft(remaining)} until next upload`;
-                    }
-                }, 1000);
-
-                statusMsg.style.color = '#ffffff';
-                statusMsg.textContent = `Please wait ${formatTimeLeft(COOLDOWN_DURATION - timePassed)} until next upload`;
-            } else {
-                submitBtn.disabled = false;
-                localStorage.removeItem('darkchan_last_upload');
-            }
+            // Attempt to load system state to verify password integrity
+            fetchData();
         }
 
-        async function loadPlatformState() {
-            checkClientCooldown();
+        function getHeaders() {
+            return {
+                'Content-Type': 'application/json',
+                'x-admin-password': currentPassword
+            };
+        }
+
+        async function fetchData() {
             try {
-                const res = await fetch('/api/public/data');
-                if (!res.ok) throw new Error("Data retrieval bad sequence");
-                localStateCache = await res.json();
+                const response = await fetch('/api/data', {
+                    headers: getHeaders()
+                });
                 
-                renderSequenceNavigation();
-                populateUploadSelector();
-                renderDynamicMediaFeed();
+                if (!response.ok) {
+                    throw new Error('Invalid credentials or connection dropped.');
+                }
+                
+                const data = await response.json();
+                
+                // If authentication passes, toggle panel access layout
+                document.getElementById('login-form').style.display = 'none';
+                document.getElementById('admin-panel').style.display = 'block';
+                
+                boardsCache = data.boards || {};
+                renderBoards();
+                
+                pendingQueue = data.pendingPosts || [];
+                renderQueue();
             } catch (err) {
-                console.error("Critical fallback interface sync aborted:", err);
+                alert(err.message);
+                currentPassword = '';
             }
         }
 
-        function renderSequenceNavigation() {
-            const listContainer = document.getElementById('alphabeticalBoardContainer');
-            listContainer.innerHTML = '';
-
-            const sortedBoardKeys = Object.keys(localStateCache.boards).sort((a, b) => {
-                return (localStateCache.boards[a].position || 0) - (localStateCache.boards[b].position || 0);
+        function renderBoards() {
+            const list = document.getElementById('boards-list');
+            list.innerHTML = '';
+            
+            // Sort keys by their stored position index matching server logic
+            const sortedKeys = Object.keys(boardsCache).sort((a, b) => {
+                return (boardsCache[a].position ?? 0) - (boardsCache[b].position ?? 0);
             });
-
-            if(sortedBoardKeys.length === 0) {
-                listContainer.innerHTML = '<li style="color:#aaaaaa; font-style:italic; padding:10px;">No boards found.</li>';
-                return;
-            }
-
-            sortedBoardKeys.forEach(key => {
-                const boardInfo = localStateCache.boards[key];
-                
+            
+            sortedKeys.forEach((key, index) => {
+                const board = boardsCache[key];
                 const li = document.createElement('li');
-                const a = document.createElement('a');
-                a.href = "#";
-                a.className = `board-item-link ${activeBoardFilter === key ? 'active' : ''}`;
-                a.innerHTML = `/${key}/ <span>${boardInfo.title} (${boardInfo.type || 'mixed'})</span>`;
-                
-                a.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    document.querySelectorAll('.board-item-link').forEach(el => el.classList.remove('active'));
-                    if (activeBoardFilter === key) {
-                        activeBoardFilter = null;
-                        document.getElementById('currentFeedTitle').textContent = "Global Shared Feed";
-                    } else {
-                        activeBoardFilter = key;
-                        a.classList.add('active');
-                        document.getElementById('currentFeedTitle').textContent = `Feed Context: /${key}/`;
-                    }
-                    currentPage = 1;
-                    renderDynamicMediaFeed();
-                });
-
-                li.appendChild(a);
-                listContainer.appendChild(li);
+                li.style.margin = "8px 0";
+                li.innerHTML = `
+                    <button onclick="moveBoard('${key}', -1)">↑</button>
+                    <button onclick="moveBoard('${key}', 1)">↓</button>
+                    <strong>/${key}</strong> - ${board.title} (${board.type})
+                    <button onclick="downloadBoardZip('${key}')">📦 Download ZIP</button>
+                    <button onclick="deleteBoard('${key}')" style="color: red;">❌ Drop Board</button>
+                `;
+                list.appendChild(li);
             });
         }
 
-        function populateUploadSelector() {
-            const selector = document.getElementById('submitTargetBoard');
-            const currentSelectedValue = selector.value;
-            
-            selector.innerHTML = '<option value="">Select Target...</option>';
-            
-            Object.keys(localStateCache.boards).sort((a, b) => {
-                return (localStateCache.boards[a].position || 0) - (localStateCache.boards[b].position || 0);
-            }).forEach(key => {
-                const opt = document.createElement('option');
-                opt.value = key;
-                opt.textContent = `/${key}/ - ${localStateCache.boards[key].title}`;
-                selector.appendChild(opt);
+        async function moveBoard(key, direction) {
+            const sortedKeys = Object.keys(boardsCache).sort((a, b) => {
+                return (boardsCache[a].position ?? 0) - (boardsCache[b].position ?? 0);
             });
 
-            if (currentSelectedValue && localStateCache.boards[currentSelectedValue]) {
-                selector.value = currentSelectedValue;
+            const index = sortedKeys.indexOf(key);
+            const targetIndex = index + direction;
+
+            // Ensure shift boundaries stay within array limit ranges
+            if (targetIndex < 0 || targetIndex >= sortedKeys.length) return;
+
+            // Swap element positions inside local ordered sequence
+            const temp = sortedKeys[index];
+            sortedKeys[index] = sortedKeys[targetIndex];
+            sortedKeys[targetIndex] = temp;
+
+            // Transmit raw backend reorder request
+            try {
+                const res = await fetch('/api/boards/reorder', {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({ order: sortedKeys })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    // Update layout values dynamically without forcing full asset reload cycle
+                    sortedKeys.forEach((k, idx) => {
+                        boardsCache[k].position = idx;
+                    });
+                    renderBoards();
+                } else {
+                    alert(data.error);
+                }
+            } catch (err) {
+                alert("Failed to synchronize board reorder tracking layout.");
             }
         }
 
-        function renderDynamicMediaFeed() {
-            const grid = document.getElementById('mainDynamicFeedGrid');
-            const paginationControls = document.getElementById('feedPaginationControls');
-            grid.innerHTML = '';
-            paginationControls.innerHTML = '';
-            
-            mediaIntersectionObserver.disconnect();
+        function renderQueue() {
+            const container = document.getElementById('queue-container');
+            document.getElementById('queue-count').innerText = pendingQueue.length;
+            container.innerHTML = '';
 
-            const targetItems = localStateCache.posts.filter(post => {
-                return !activeBoardFilter || post.board === activeBoardFilter;
-            }).reverse();
-
-            if (targetItems.length === 0) {
-                grid.innerHTML = '<div style="color:#aaaaaa; font-style:italic; padding:10px; grid-column:1/-1;">No published assets matches this feed context.</div>';
+            if (pendingQueue.length === 0) {
+                container.innerHTML = '<p>No posts waiting for review.</p>';
                 return;
             }
 
-            const totalPages = Math.ceil(targetItems.length / itemsPerPage);
-            if (currentPage > totalPages) currentPage = totalPages || 1;
+            // Slice out precisely 5 items at a time to prevent performance crashes
+            const batchedView = pendingQueue.slice(0, 5);
 
-            const startIndex = (currentPage - 1) * itemsPerPage;
-            const endIndex = startIndex + itemsPerPage;
-            const paginatedItems = targetItems.slice(startIndex, endIndex);
+            batchedView.forEach(post => {
+                const div = document.createElement('div');
+                div.style.border = "1px solid black";
+                div.style.margin = "5px 0";
+                div.style.padding = "5px";
 
-            paginatedItems.forEach(item => {
-                const card = document.createElement('div');
-                card.className = 'feed-card';
-                card.dataset.id = item.id;
-                card.dataset.src = item.src || '';
-                card.dataset.type = item.type;
-                card.dataset.msg = item.message || '';
-                card.dataset.thumb = item.thumbnail || '';
+                let contentSnippet = '';
+                if (post.type === 'text') {
+                    contentSnippet = `<p><strong>Text:</strong> ${post.message}</p>`;
+                } else if (post.type === 'image' || post.type === 'video') {
+                    contentSnippet = `<p><strong>Media Source:</strong> <a href="${post.src}" target="_blank">${post.src}</a></p>`;
+                }
 
-                const contentBox = document.createElement('div');
-                contentBox.className = (item.type === 'text') ? 'chat-text-container' : 'media-container';
-                card.appendChild(contentBox);
-
-                const meta = document.createElement('div');
-                meta.className = 'card-meta';
-                meta.innerHTML = `ID: <span>No. ${item.id}</span> inside <span>/${item.board}/</span>`;
-                card.appendChild(meta);
-
-                grid.appendChild(card);
-                mediaIntersectionObserver.observe(card);
+                div.innerHTML = `
+                    <p><strong>ID:</strong> ${post.id} | <strong>Board:</strong> /${post.board} | <strong>Type:</strong> ${post.type}</p>
+                    ${contentSnippet}
+                    <button onclick="moderatePost('${post.id}', 'approve')" style="color: green; font-weight: bold; margin-right: 10px;">V (Approve)</button>
+                    <button onclick="moderatePost('${post.id}', 'deny')" style="color: red; font-weight: bold;">X (Deny)</button>
+                `;
+                container.appendChild(div);
             });
-
-            if (totalPages > 1) {
-                const prevBtn = document.createElement('button');
-                prevBtn.className = 'pagination-btn';
-                prevBtn.textContent = 'Previous';
-                prevBtn.disabled = currentPage === 1;
-                prevBtn.addEventListener('click', () => {
-                    currentPage--;
-                    renderDynamicMediaFeed();
-                    document.getElementById('currentFeedTitle').scrollIntoView({ behavior: 'smooth' });
-                });
-
-                const pageInfo = document.createElement('span');
-                pageInfo.className = 'pagination-info';
-                pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
-
-                const nextBtn = document.createElement('button');
-                nextBtn.className = 'pagination-btn';
-                nextBtn.textContent = 'Next';
-                nextBtn.disabled = currentPage === totalPages;
-                nextBtn.addEventListener('click', () => {
-                    currentPage++;
-                    renderDynamicMediaFeed();
-                    document.getElementById('currentFeedTitle').scrollIntoView({ behavior: 'smooth' });
-                });
-
-                paginationControls.appendChild(prevBtn);
-                paginationControls.appendChild(pageInfo);
-                paginationControls.appendChild(nextBtn);
-            }
         }
 
-        const mediaIntersectionObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                const card = entry.target;
-                const type = card.dataset.type;
-                const src = card.dataset.src;
-                const msg = card.dataset.msg;
-                const thumb = card.dataset.thumb;
-                
-                const contentBox = card.querySelector('.media-container, .chat-text-container');
-                if (!contentBox) return;
-
-                if (entry.isIntersecting) {
-                    card.classList.add('active-view');
-                    if (contentBox.children.length === 0 && contentBox.textContent === '') {
-                        if (type === 'text') {
-                            contentBox.textContent = msg;
-                        } else if (type === 'video') {
-                            if (thumb) {
-                                const imgThumb = document.createElement('img');
-                                imgThumb.src = thumb;
-                                imgThumb.style.cursor = 'pointer';
-                                imgThumb.title = "Click to run media stream playback";
-                                
-                                imgThumb.addEventListener('click', () => {
-                                    contentBox.innerHTML = '';
-                                    const video = document.createElement('video');
-                                    video.src = src;
-                                    video.controls = true;
-                                    video.autoplay = true;
-                                    contentBox.appendChild(video);
-                                });
-                                contentBox.appendChild(imgThumb);
-                            } else {
-                                const videoThumb = document.createElement('video');
-                                videoThumb.src = src;
-                                videoThumb.muted = true;
-                                videoThumb.playsInline = true;
-                                videoThumb.style.cursor = 'pointer';
-                                videoThumb.title = "Click to run media stream playback";
-                                
-                                videoThumb.addEventListener('loadedmetadata', () => {
-                                    if (isFinite(videoThumb.duration)) {
-                                        videoThumb.currentTime = videoThumb.duration / 2;
-                                    }
-                                });
-
-                                videoThumb.addEventListener('seeked', function lockFrame() {
-                                    videoThumb.removeEventListener('seeked', lockFrame);
-                                });
-
-                                videoThumb.addEventListener('click', () => {
-                                    contentBox.innerHTML = '';
-                                    const video = document.createElement('video');
-                                    video.src = src;
-                                    video.controls = true;
-                                    video.autoplay = true;
-                                    contentBox.appendChild(video);
-                                });
-                                contentBox.appendChild(videoThumb);
-                            }
-                        } else {
-                            const img = document.createElement('img');
-                            img.src = src;
-                            contentBox.appendChild(img);
-                        }
-                    }
-                } else {
-                    card.classList.remove('active-view');
-                    contentBox.innerHTML = '';
-                    contentBox.textContent = '';
-                }
-            });
-        }, {
-            root: null,
-            rootMargin: '300px 0px 300px 0px',
-            threshold: 0.01
-        });
-
-        document.getElementById('publicSubmissionForm').addEventListener('submit', function(e) {
+        async function createBoard(e) {
             e.preventDefault();
+            const name = document.getElementById('board-name').value;
+            const title = document.getElementById('board-title').value;
+            const type = document.getElementById('board-type').value;
 
-            const lastUploadTime = localStorage.getItem('darkchan_last_upload');
-            if (lastUploadTime && (Date.now() - parseInt(lastUploadTime, 10) < COOLDOWN_DURATION)) {
-                return;
-            }
-
-            const board = document.getElementById('submitTargetBoard').value;
-            const statusMsg = document.getElementById('submissionStatusMsg');
-            const progBox = document.getElementById('submissionProgressBox');
-            const progFill = document.getElementById('submissionProgressFill');
-            const progText = document.getElementById('submissionProgressText');
-
-            if (!board) return;
-
-            const boardMeta = localStateCache.boards[board];
-            const formData = new FormData();
-            formData.append('board', board);
-
-            let uploadEndpoint = '/api/public/upload';
-
-            if (boardMeta && boardMeta.type === 'chat') {
-                const textInput = document.getElementById('chatMessageTextarea');
-                if (!textInput || !textInput.value.trim()) return;
-                
-                const wordCount = textInput.value.trim().split(/\s+/).filter(Boolean).length;
-                if(wordCount > 200) {
-                    alert('Submission rejected locally: content block size limits exceeded.');
-                    return;
-                }
-                
-                uploadEndpoint = '/api/posts/chat';
-                formData.append('message', textInput.value.trim());
-            } else {
-                const fileInputEl = document.getElementById('publicMediaFile');
-                const fileInput = fileInputEl ? fileInputEl.files[0] : null;
-                if (!fileInput) return;
-                formData.append('media', fileInput);
-            }
-
-            statusMsg.textContent = '';
-            progBox.style.display = 'block';
-            progFill.style.width = '0%';
-            progText.textContent = '0%';
-
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', uploadEndpoint, true);
-
-            xhr.upload.addEventListener('progress', (event) => {
-                if (event.lengthComputable) {
-                    const pct = Math.round((event.loaded / event.total) * 100);
-                    progFill.style.width = pct + '%';
-                    progText.textContent = pct + '%';
-                }
+            const res = await fetch('/api/boards/create', {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ name, title, type })
             });
+            const data = await res.json();
+            alert(data.message || data.error);
+            if (data.success) {
+                document.getElementById('create-board-form').reset();
+                fetchData();
+            }
+        }
 
-            xhr.onload = function () {
-                progBox.style.display = 'none';
+        async function deleteBoard(name) {
+            if (!confirm(`Are you absolutely sure you want to drop /${name}? This clears all posts!`)) return;
+            
+            const res = await fetch('/api/boards/delete', {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ name })
+            });
+            const data = await res.json();
+            alert(data.message || data.error);
+            fetchData();
+        }
 
-                if (xhr.status === 200 || xhr.status === 201) {
-                    statusMsg.style.color = '#ffffff';
-                    statusMsg.textContent = 'Content broadcast entry submitted into context queues successfully.';
-                    document.getElementById('publicSubmissionForm').reset();
-                    adjustFormFieldsForBoardType(board);
-                    
-                    localStorage.setItem('darkchan_last_upload', Date.now().toString());
-                    checkClientCooldown();
-                    loadPlatformState();
-                } else {
-                    try {
-                        const errData = JSON.parse(xhr.responseText);
-                        statusMsg.style.color = '#ffffff';
-                        
-                        if (xhr.status === 429 && errData.error) {
-                            const match = errData.error.match(/\d+/);
-                            if (match) {
-                                const totalSeconds = parseInt(match[0], 10);
-                                const mins = Math.floor(totalSeconds / 60);
-                                const secs = totalSeconds % 60;
-                                statusMsg.textContent = `Please wait ${mins}:${secs < 10 ? '0' : ''}${secs} until next upload`;
-                            } else {
-                                statusMsg.textContent = errData.error;
-                            }
-                            
-                            if (!localStorage.getItem('darkchan_last_upload')) {
-                                localStorage.setItem('darkchan_last_upload', Date.now().toString());
-                                checkClientCooldown();
-                            }
-                        } else {
-                            statusMsg.textContent = errData.error || 'Server error processing queue ingestion.';
-                        }
-                    } catch(e) {
-                        statusMsg.style.color = '#ffffff';
-                        statusMsg.textContent = 'Error processing upload parameters.';
-                    }
-                }
-            };
+        function downloadBoardZip(name) {
+            const targetUrl = `/api/boards/download/${name}`;
+            const clientLink = document.createElement('a');
+            
+            fetch(targetUrl, { headers: getHeaders() })
+                .then(res => {
+                    if (!res.ok) throw new Error("Could not download archive file layout structures.");
+                    return res.blob();
+                })
+                .then(blob => {
+                    const downloadUrl = window.URL.createObjectURL(blob);
+                    clientLink.href = downloadUrl;
+                    clientLink.download = `darkchan-board-${name}-export.zip`;
+                    document.body.appendChild(clientLink);
+                    clientLink.click();
+                    clientLink.remove();
+                })
+                .catch(err => alert(err.message));
+        }
 
-            xhr.onerror = function() {
-                progBox.style.display = 'none';
-                statusMsg.style.color = '#ffffff';
-                statusMsg.textContent = 'Network error occurred during execution.';
-            };
+        async function moderatePost(id, action) {
+            const res = await fetch('/api/posts/approve', {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ id, action })
+            });
+            const data = await res.json();
+            if (data.success) {
+                pendingQueue = pendingQueue.filter(p => String(p.id) !== String(id));
+                renderQueue();
+            } else {
+                alert(data.error);
+            }
+        }
 
-            xhr.send(formData);
-        });
+        async function deletePostById() {
+            const id = document.getElementById('search-post-id').value.trim();
+            if (!id) return alert('Input an item ID');
 
-        window.addEventListener('DOMContentLoaded', () => {
-            loadPlatformState();
-            bindFileInputListener();
-        });
-        
-        setInterval(loadPlatformState, 10000);
+            if (!confirm(`Delete item ID: ${id} directly from live database?`)) return;
+
+            const res = await fetch('/api/posts/delete', {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ id })
+            });
+            const data = await res.json();
+            alert(data.message || data.error);
+            if (data.success) {
+                document.getElementById('search-post-id').value = '';
+                fetchData();
+            }
+        }
     </script>
 </body>
 </html>
