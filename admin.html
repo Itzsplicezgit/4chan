@@ -236,13 +236,14 @@
             }
         }
 
+        // --- UPDATED UPLOAD FUNCTION WITH CORRECT ROUTE ---
         function uploadFileWithProgress(file, board) {
             return new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 const formData = new FormData();
-                formData.append('node', board);
+                formData.append('board', board); // Added board here
                 formData.append('media', file);
-                formData.append('bypass_limits', 'true');
+                // formData.append('bypass_limits', 'true'); // Not strictly needed if header auth used
 
                 xhr.upload.addEventListener('progress', (e) => {
                     if (e.lengthComputable) {
@@ -262,7 +263,8 @@
 
                 xhr.addEventListener('error', () => reject(new Error('Network error during transfer.')));
                 
-                xhr.open('POST', '/api/public/upload');
+                // FIXED: Changed path to /api/posts/upload
+                xhr.open('POST', '/api/posts/upload');
                 xhr.setRequestHeader('x-admin-password', currentPassword);
                 xhr.send(formData);
             });
@@ -285,9 +287,8 @@
                 if (meta.type === 'chat') {
                     const msgValue = document.getElementById('admin-direct-message').value.trim();
                     const formData = new FormData();
-                    formData.append('room', board);
+                    formData.append('board', board); // Fixed key to match backend expectation
                     formData.append('message', msgValue);
-                    formData.append('bypass_limits', 'true');
 
                     const response = await fetch('/api/posts/chat', {
                         method: 'POST',
