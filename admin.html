@@ -236,6 +236,38 @@
             }
         }
 
+        function uploadFileWithProgress(file, board) {
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                const formData = new FormData();
+                formData.append('node', board);
+                formData.append('media', file);
+                formData.append('bypass_limits', 'true');
+
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percentComplete = Math.round((e.loaded / e.total) * 100);
+                        const statusBox = document.getElementById('admin-upload-status');
+                        statusBox.textContent = `Uploading item: ${percentComplete}% complete...`;
+                    }
+                });
+
+                xhr.addEventListener('load', () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        resolve(true);
+                    } else {
+                        resolve(false);
+                    }
+                });
+
+                xhr.addEventListener('error', () => reject(new Error('Network error during transfer.')));
+                
+                xhr.open('POST', '/api/public/upload');
+                xhr.setRequestHeader('x-admin-password', currentPassword);
+                xhr.send(formData);
+            });
+        }
+
         async function handleAdminDirectUpload(event) {
             event.preventDefault();
             const board = document.getElementById('admin-upload-target-board').value;
@@ -273,19 +305,9 @@
 
                     let successCount = 0;
                     for (let i = 0; i < files.length; i++) {
-                        statusBox.textContent = `Uploading item ${i + 1} of ${files.length}...`;
-                        const formData = new FormData();
-                        formData.append('node', board);
-                        formData.append('media', files[i]);
-                        formData.append('bypass_limits', 'true');
-
-                        const response = await fetch('/api/public/upload', {
-                            method: 'POST',
-                            headers: { 'x-admin-password': currentPassword },
-                            body: formData
-                        });
-
-                        if (response.ok) successCount++;
+                        statusBox.textContent = `Preparing item ${i + 1} of ${files.length}...`;
+                        const wasSuccessful = await uploadFileWithProgress(files[i], board);
+                        if (wasSuccessful) successCount++;
                     }
                     statusBox.style.color = 'green';
                     statusBox.textContent = `Batch push finished. ${successCount}/${files.length} uploads cleared into live database.`;
