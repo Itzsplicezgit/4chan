@@ -429,7 +429,6 @@
                         submitBtn.disabled = true;
                     } else {
                         counter.className = "counter-label";
-                        // Only re-enable if we aren't currently waiting on a global cooldown
                         const lastUploadTime = localStorage.getItem('darkchan_last_upload');
                         const timePassed = lastUploadTime ? Date.now() - parseInt(lastUploadTime, 10) : COOLDOWN_DURATION;
                         if (timePassed >= COOLDOWN_DURATION) {
@@ -753,10 +752,10 @@
 
             if (!board) return;
 
-const boardMeta = localStateCache.boards[board];
-let formData;
-let uploadEndpoint = '/api/posts/upload';
-let isChatSubmission = false;
+            const boardMeta = localStateCache.boards[board];
+            let formData;
+            let uploadEndpoint = '/api/posts/upload';
+            let isChatSubmission = false;
 
             if (boardMeta && boardMeta.type === 'chat') {
                 const textInput = document.getElementById('chatMessageTextarea');
@@ -768,17 +767,19 @@ let isChatSubmission = false;
                     return;
                 }
                 
-uploadEndpoint = '/api/posts/chat';
-isChatSubmission = true;
+                uploadEndpoint = '/api/posts/chat';
+                isChatSubmission = true;
 
-formData = JSON.stringify({
-    board: board,
-    message: textInput.value.trim()
-});
+                formData = JSON.stringify({
+                    board: board,
+                    message: textInput.value.trim()
+                });
             } else {
                 const fileInputEl = document.getElementById('publicMediaFile');
                 const fileInput = fileInputEl ? fileInputEl.files[0] : null;
                 if (!fileInput) return;
+                
+                formData = new FormData();
                 formData.append('board', board);
                 formData.append('media', fileInput);
             }
@@ -804,42 +805,25 @@ formData = JSON.stringify({
                 if (xhr.status >= 200 && xhr.status < 300) {
                     statusMsg.style.color = '#ffffff';
                     statusMsg.textContent = 'Submitted successfully to moderation queue!';
-                    
-                    // Set client cooldown constraint right away upon success
                     localStorage.setItem('darkchan_last_upload', Date.now().toString());
                     checkClientCooldown();
-                    
-                    // Reset inputs safely
-                    document.getElementById('publicSubmissionForm').reset();
-                    adjustFormFieldsForBoardType(board);
-                    
-                    // Re-sync platform logs
-                    loadPlatformState();
                 } else {
                     statusMsg.style.color = '#cf6679';
-                    statusMsg.textContent = 'Submission failed or rejected by server constraints.';
+                    statusMsg.textContent = 'Submission error: Check connection or board capacity.';
                     submitBtn.disabled = false;
                 }
             });
 
-            xhr.addEventListener('error', function() {
-                progBox.style.display = 'none';
-                statusMsg.style.color = '#cf6679';
-                statusMsg.textContent = 'A critical network error occurred during broadcast.';
-                submitBtn.disabled = false;
-            });
-
-xhr.open('POST', uploadEndpoint, true);
-
-if (isChatSubmission) {
-    xhr.setRequestHeader('Content-Type', 'application/json');
-}
-
-xhr.send(formData);
+            xhr.open('POST', uploadEndpoint);
+            if (!isChatSubmission) {
+                xhr.send(formData);
+            } else {
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.send(formData);
+            }
         });
 
-        // Initialize platform cache cycle logs
-        window.addEventListener('DOMContentLoaded', loadPlatformState);
+        loadPlatformState();
     </script>
 </body>
 </html>
