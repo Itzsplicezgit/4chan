@@ -36,6 +36,27 @@
         <ul id="boards-list"></ul>
         <hr />
 
+        <!-- Admin Direct Broadcast Panel -->
+        <h2>Direct Admin Upload Terminal (Bypass Restrictions)</h2>
+        <form id="admin-direct-upload-form" onsubmit="handleAdminDirectUpload(event)">
+            <div style="margin-bottom: 10px;">
+                <label style="display:block; font-weight:bold; margin-bottom:5px;">Select Destination Board</label>
+                <select id="admin-upload-target-board" onchange="toggleAdminUploadFieldType()" required>
+                    <option value="">Select Board...</option>
+                </select>
+            </div>
+            
+            <div style="margin-bottom: 10px;" id="admin-dynamic-input-zone">
+                <label style="display:block; font-weight:bold; margin-bottom:5px;">Select File(s)</label>
+                <input type="file" id="admin-direct-files" multiple required>
+                <p style="font-size:12px; color:green; margin-top:4px;">✓ Admin Status Active: 20MB payload caps completely disabled.</p>
+            </div>
+
+            <button type="submit" id="admin-upload-submit-btn">Execute Immediate Push</button>
+        </form>
+        <div id="admin-upload-status" style="margin-top: 10px; font-weight: bold;"></div>
+        <hr />
+
         <!-- Specific Item Moderation -->
         <h2>Search & Destroy Post</h2>
         <input type="text" id="search-post-id" placeholder="Enter Post ID...">
@@ -52,14 +73,13 @@
     <script>
         let currentPassword = '';
         let pendingQueue = [];
-        let boardsCache = {}; // Keeps track of active boards locally for reordering computations
+        let boardsCache = {};
 
         function login() {
             const passInput = document.getElementById('admin-pass').value;
             if (!passInput) return alert('Enter a password');
             currentPassword = passInput;
             
-            // Attempt to load system state to verify password integrity
             fetchData();
         }
 
@@ -82,12 +102,12 @@
                 
                 const data = await response.json();
                 
-                // If authentication passes, toggle panel access layout
                 document.getElementById('login-form').style.display = 'none';
                 document.getElementById('admin-panel').style.display = 'block';
                 
                 boardsCache = data.boards || {};
                 renderBoards();
+                populateAdminUploadDropdown();
                 
                 pendingQueue = data.pendingPosts || [];
                 renderQueue();
@@ -101,7 +121,6 @@
             const list = document.getElementById('boards-list');
             list.innerHTML = '';
             
-            // Sort keys by their stored position index matching server logic
             const sortedKeys = Object.keys(boardsCache).sort((a, b) => {
                 return (boardsCache[a].position ?? 0) - (boardsCache[b].position ?? 0);
             });
@@ -121,6 +140,133 @@
             });
         }
 
+        function populateAdminUploadDropdown() {
+            const dropdown = document.getElementById('admin-upload-target-board');
+            const savedSelection = dropdown.value;
+            dropdown.innerHTML = '<option value="">Select Board...</option>';
+            
+            Object.keys(boardsCache).sort((a, b) => {
+                return (boardsCache[a].position ?? 0) - (boardsCache[b].position ?? 0);
+            }).forEach(key => {
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = `/${key}/ - ${boardsCache[key].title}`;
+                dropdown.appendChild(opt);
+            });
+
+            if (savedSelection && boardsCache[savedSelection]) {
+                dropdown.value = savedSelection;
+            }
+            toggleAdminUploadFieldType();
+        }
+
+        function toggleAdminUploadFieldType() {
+            const boardKey = document.getElementById('admin-upload-target-board').value;
+            const inputZone = document.getElementById('admin-dynamic-input-zone');
+            
+            if (!boardKey || !boardsCache[boardKey]) {
+                inputZone.innerHTML = `
+                    <label style="display:block; font-weight:bold; margin-bottom:5px;">Select File(s)</label>
+                    <input type="file" id="admin-direct-files" multiple disabled required>
+                    <p style="font-size:12px; color:green; margin-top:4px;">✓ Admin Status Active: 20MB payload caps completely disabled.</p>
+                `;
+                return;
+            }
+
+            const meta = boardsCache[boardKey];
+            if (meta.type === 'chat') {
+                inputZone.innerHTML = `
+                    <label style="display:block; font-weight:bold; margin-bottom:5px;">Broadcast Text Stream Message</label>
+                    <textarea id="admin-direct-message" style="width:100%; height:60px;" placeholder="Type broadcast message..." required></textarea>
+                    <p style="font-size:12px; color:green; margin-top:4px;">✓ Admin Context: Character limits, cooldown loops, and safety checks bypassed.</p>
+                `;
+            } else if (meta.type === 'images') {
+                inputZone.innerHTML = `
+                    <label style="display:block; font-weight:bold; margin-bottom:5px;">Select Photo Assets (Multiple Allowed)</label>
+                    <input type="file" id="admin-direct-files" accept="image/*" multiple required>
+                    <p style="font-size:12px; color:green; margin-top:4px;">✓ Admin Status Active: 20MB payload caps completely disabled.</p>
+                `;
+            } else if (meta.type === 'videos') {
+                inputZone.innerHTML = `
+                    <label style="display:block; font-weight:bold; margin-bottom:5px;">Select Video Assets (Multiple Allowed)</label>
+                    <input type="file" id="admin-direct-files" accept="video/*" multiple required>
+                    <p style="font-size:12px; color:green; margin-top:4px;">✓ Admin Status Active: 20MB payload caps completely disabled.</p>
+                `;
+            } else {
+                inputZone.innerHTML = `
+                    <label style="display:block; font-weight:bold; margin-bottom:5px;">Select Media Assets (Multiple Allowed)</label>
+                    <input type="file" id="admin-direct-files" accept="image/*,video/*" multiple required>
+                    <p style="font-size:12px; color:green; margin-top:4px;">✓ Admin Status Active: 20MB payload caps completely disabled.</p>
+                `;
+            }
+        }
+
+        async function handleAdminDirectUpload(event) {
+            event.preventDefault();
+            const board = document.getElementById('admin-upload-target-board').value;
+            const statusBox = document.getElementById('admin-upload-status');
+            const submitBtn = document.getElementById('admin-upload-submit-btn');
+            
+            if (!board || !boardsCache[board]) return;
+            
+            const meta = boardsCache[board];
+            submitBtn.disabled = true;
+            statusBox.style.color = '#ffffff';
+            statusBox.textContent = 'Processing bypass transmission...';
+
+            try {
+                if (meta.type === 'chat') {
+                    const msgValue = document.getElementById('admin-direct-message').value.trim();
+                    const formData = new FormData();
+                    formData.append('room', board);
+                    formData.append('message', msgValue);
+                    formData.append('bypass_limits', 'true');
+
+                    const response = await fetch('/api/posts/chat', {
+                        method: 'POST',
+                        headers: { 'x-admin-password': currentPassword },
+                        body: formData
+                    });
+
+                    if (!response.ok) throw new Error(await response.text());
+                    statusBox.style.color = 'green';
+                    statusBox.textContent = 'Broadcast update published successfully.';
+                } else {
+                    const fileInput = document.getElementById('admin-direct-files');
+                    const files = fileInput.files;
+                    if (!files.length) return;
+
+                    let successCount = 0;
+                    for (let i = 0; i < files.length; i++) {
+                        statusBox.textContent = `Uploading item ${i + 1} of ${files.length}...`;
+                        const formData = new FormData();
+                        formData.append('node', board);
+                        formData.append('media', files[i]);
+                        formData.append('bypass_limits', 'true');
+
+                        const response = await fetch('/api/public/upload', {
+                            method: 'POST',
+                            headers: { 'x-admin-password': currentPassword },
+                            body: formData
+                        });
+
+                        if (response.ok) successCount++;
+                    }
+                    statusBox.style.color = 'green';
+                    statusBox.textContent = `Batch push finished. ${successCount}/${files.length} uploads cleared into live database.`;
+                }
+
+                document.getElementById('admin-direct-upload-form').reset();
+                toggleAdminUploadFieldType();
+                fetchData();
+            } catch (err) {
+                statusBox.style.color = 'red';
+                statusBox.textContent = `Transmission failed: ${err.message}`;
+            } finally {
+                submitBtn.disabled = false;
+            }
+        }
+
         async function moveBoard(key, direction) {
             const sortedKeys = Object.keys(boardsCache).sort((a, b) => {
                 return (boardsCache[a].position ?? 0) - (boardsCache[b].position ?? 0);
@@ -129,15 +275,12 @@
             const index = sortedKeys.indexOf(key);
             const targetIndex = index + direction;
 
-            // Ensure shift boundaries stay within array limit ranges
             if (targetIndex < 0 || targetIndex >= sortedKeys.length) return;
 
-            // Swap element positions inside local ordered sequence
             const temp = sortedKeys[index];
             sortedKeys[index] = sortedKeys[targetIndex];
             sortedKeys[targetIndex] = temp;
 
-            // Transmit raw backend reorder request
             try {
                 const res = await fetch('/api/boards/reorder', {
                     method: 'POST',
@@ -146,11 +289,11 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    // Update layout values dynamically without forcing full asset reload cycle
                     sortedKeys.forEach((k, idx) => {
                         boardsCache[k].position = idx;
                     });
                     renderBoards();
+                    populateAdminUploadDropdown();
                 } else {
                     alert(data.error);
                 }
@@ -169,7 +312,6 @@
                 return;
             }
 
-            // Slice out precisely 5 items at a time to prevent performance crashes
             const batchedView = pendingQueue.slice(0, 5);
 
             batchedView.forEach(post => {
