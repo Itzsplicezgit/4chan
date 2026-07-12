@@ -771,82 +771,56 @@
             const progressText = document.getElementById('adminUploadProgressText');
             const statusMsg = document.getElementById('adminUploadStatusMsg');
 
+            statusMsg.textContent = '';
             progressBox.style.display = 'block';
             progressFill.style.width = '0%';
             progressText.textContent = '0%';
-            statusMsg.textContent = '';
 
             const formData = new FormData();
             formData.append('board', board);
             if (customId) formData.append('customId', customId);
+            
             for (let i = 0; i < filesInput.files.length; i++) {
                 formData.append('files', filesInput.files[i]);
             }
 
             const xhr = new XMLHttpRequest();
-            xhr.open('POST', '/api/posts/direct-upload', true);
+            xhr.open('POST', '/api/upload/direct', true);
             xhr.setRequestHeader('x-admin-password', getAuthPassword());
 
-            xhr.upload.onprogress = function (e) {
-                if (e.lengthComputable) {
-                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+            xhr.upload.addEventListener('progress', (event) => {
+                if (event.lengthComputable) {
+                    const percentComplete = Math.round((event.loaded / event.total) * 100);
                     progressFill.style.width = percentComplete + '%';
                     progressText.textContent = percentComplete + '%';
                 }
-            };
+            });
 
-            xhr.onload = function () {
+            xhr.addEventListener('load', () => {
                 let responseData;
                 try {
                     responseData = JSON.parse(xhr.responseText);
-                } catch (err) {
-                    responseData = { error: 'Server returned unrecognizable data streams.' };
+                } catch (e) {
+                    responseData = { error: 'Invalid server performance payload data structure.' };
                 }
 
                 if (xhr.status >= 200 && xhr.status < 300 && responseData.success) {
                     statusMsg.style.color = '#b5bd68';
-                    statusMsg.textContent = 'Assets processed and published directly into production!';
+                    statusMsg.textContent = 'Media published down cleanly straight to dashboard timelines!';
                     document.getElementById('adminDirectUploadForm').reset();
                     synchroniseState();
                 } else {
                     statusMsg.style.color = '#cf6679';
-                    statusMsg.textContent = responseData.error || 'Upload runtime submission error.';
+                    statusMsg.textContent = responseData.error || 'Direct processing upload execution batch fault.';
                 }
-            };
+            });
 
-            xhr.onerror = function () {
+            xhr.addEventListener('error', () => {
                 statusMsg.style.color = '#cf6679';
-                statusMsg.textContent = 'Fatal transport network socket failure occurred.';
-            };
+                statusMsg.textContent = 'Pipeline transport drop out tracking active routes.';
+            });
 
             xhr.send(formData);
-        });
-
-        document.getElementById('deletePostForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const postId = document.getElementById('deletePostId').value.trim();
-            const statusNode = document.getElementById('deletePostStatusMsg');
-            statusNode.textContent = '';
-
-            try {
-                const res = await fetch(`/api/posts/delete/${postId}`, {
-                    method: 'DELETE',
-                    headers: { 'x-admin-password': getAuthPassword() }
-                });
-                const data = await res.json();
-                if (res.ok && data.success) {
-                    statusNode.style.color = '#b5bd68';
-                    statusNode.textContent = `Asset item ID ${postId} successfully wiped from operational arrays.`;
-                    document.getElementById('deletePostForm').reset();
-                    synchroniseState();
-                } else {
-                    statusNode.style.color = '#cf6679';
-                    statusNode.textContent = data.error || 'Target execution failure processing asset wipe.';
-                }
-            } catch (err) {
-                statusNode.style.color = '#cf6679';
-                statusNode.textContent = 'Network loss executing runtime instructions.';
-            }
         });
     </script>
 </body>
