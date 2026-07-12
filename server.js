@@ -13,7 +13,7 @@ const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MASTER_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123'; // Change as needed or set environment variable
+const MASTER_PASSWORD = process.env.ADMIN_PASSWORD || 'fish'; // Change as needed or set environment variable
 const DATA_FILE = path.join(__dirname, 'data.json');
 
 // Ensure storage paths exist cleanly
