@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control Panel - Admin Platform</title>
+    <title>DarkChan Control Panel - Admin Platform</title>
     <style>
         * {
             box-sizing: border-box;
@@ -85,6 +85,12 @@
         button:hover { 
             opacity: 0.9;
         }
+        button:disabled {
+            background: #444444;
+            color: #888888;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
         .danger-btn {
             background: #cf6679;
             color: #ffffff;
@@ -113,6 +119,7 @@
             background: #121212;
             position: relative;
             border-bottom: 1px solid #3d3d3d;
+            overflow: hidden;
         }
         .queue-media img, .queue-media video {
             width: 100%;
@@ -187,12 +194,37 @@
             text-align: center;
             font-weight: bold;
         }
+        
+        /* Layout formatting specific to row sequencers */
+        .order-row-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #2d2d2d;
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #3d3d3d;
+        }
+        .order-row-item span {
+            font-weight: bold;
+            font-size: 13px;
+        }
+        .order-btn-cluster {
+            display: flex;
+            gap: 6px;
+        }
+        .order-btn-cluster button {
+            width: 32px;
+            padding: 4px;
+            font-size: 11px;
+            margin-top: 0;
+        }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>System Control Panel</h1>
+        <h1>DarkChan System Control Panel</h1>
 
         <div class="section-wrapper" id="authGate">
             <h2>System Authentication</h2>
@@ -234,6 +266,7 @@
                                 <option value="mixed">Mixed Media Content Assets</option>
                                 <option value="images">Exclusively Images</option>
                                 <option value="videos">Exclusively Videos</option>
+                                <option value="chat">Text-Only Chat Stream Room</option>
                             </select>
                         </div>
                         <button type="submit">Deploy Board Category</button>
@@ -251,6 +284,33 @@
                         </div>
                         <button type="submit" class="danger-btn">Delete Board & Associated Files</button>
                     </form>
+                </div>
+
+                <div class="section-wrapper">
+                    <h2>Download Whole Board Archive Bundle</h2>
+                    <form id="downloadBoardForm">
+                        <div class="form-group">
+                            <label for="downloadBoardSelector">Select Asset Target to Export (.ZIP)</label>
+                            <select id="downloadBoardSelector" required>
+                                <option value="">Loading Boards...</option>
+                            </select>
+                        </div>
+                        <button type="submit">Download Complete Asset Bundle</button>
+                    </form>
+                </div>
+
+                <div class="section-wrapper">
+                    <h2>Rearrange Board Display Sequence</h2>
+                    <form id="reorderBoardsForm">
+                        <div class="form-group">
+                            <label>Configure Structural Position Hierarchies (Avoids Alphabetical Defaults)</label>
+                            <div id="reorderBoardsContainer" style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px; margin-bottom: 12px;">
+                                <div style="color: #aaaaaa; font-style: italic; font-size: 12px;">Loading alignment arrays...</div>
+                            </div>
+                        </div>
+                        <button type="submit">Save Custom Layout Sequence</button>
+                    </form>
+                    <div class="status-msg" id="reorderStatusMsg"></div>
                 </div>
 
             </div>
@@ -351,36 +411,52 @@
         function refreshDashboardViews() {
             populateSelectorDropdowns();
             renderProgressiveQueueGrid();
+            renderReorderInterface();
         }
 
         function populateSelectorDropdowns() {
             const delSelector = document.getElementById('deleteBoardSelector');
             const uploadSelector = document.getElementById('uploadBoardSelector');
+            const downloadSelector = document.getElementById('downloadBoardSelector');
             
             const savedDelVal = delSelector.value;
             const savedUpVal = uploadSelector.value;
+            const savedDlVal = downloadSelector.value;
 
             delSelector.innerHTML = '<option value="">Select a board...</option>';
             uploadSelector.innerHTML = '<option value="">Select a board...</option>';
+            downloadSelector.innerHTML = '<option value="">Select a board...</option>';
 
-            const boardsList = Object.keys(serverCache.boards);
+            // Sort keys cleanly by sequential assignment order configuration node
+            const boardsList = Object.keys(serverCache.boards).sort((a, b) => {
+                return (serverCache.boards[a].position || 0) - (serverCache.boards[b].position || 0);
+            });
 
             boardsList.forEach(key => {
                 const title = serverCache.boards[key].title;
+                const type = serverCache.boards[key].type || 'mixed';
                 
+                const optionString = `/${key}/ - ${title} [${type.toUpperCase()}]`;
+
                 const opt1 = document.createElement('option');
                 opt1.value = key;
-                opt1.textContent = `/${key}/ - ${title}`;
+                opt1.textContent = optionString;
                 delSelector.appendChild(opt1);
 
                 const opt2 = document.createElement('option');
                 opt2.value = key;
-                opt2.textContent = `/${key}/ - ${title}`;
+                opt2.textContent = optionString;
                 uploadSelector.appendChild(opt2);
+
+                const opt3 = document.createElement('option');
+                opt3.value = key;
+                opt3.textContent = optionString;
+                downloadSelector.appendChild(opt3);
             });
 
             if (boardsList.includes(savedDelVal)) delSelector.value = savedDelVal;
             if (boardsList.includes(savedUpVal)) uploadSelector.value = savedUpVal;
+            if (boardsList.includes(savedDlVal)) downloadSelector.value = savedDlVal;
         }
 
         function renderProgressiveQueueGrid() {
@@ -409,12 +485,54 @@
                 const mediaBox = document.createElement('div');
                 mediaBox.className = 'queue-media';
 
+                // FEATURE IMPLEMENTATION: Lazy rendering system for video objects to isolate client lag spikes
                 if (item.type === 'video') {
-                    const video = document.createElement('video');
-                    video.src = item.src;
-                    video.controls = true;
-                    video.preload = 'metadata';
-                    mediaBox.appendChild(video);
+                    const thumbImg = document.createElement('img');
+                    // Point to thumbnail pipeline string; defaults fallback cleanly if backend synchronization layers alter paths
+                    thumbImg.src = item.thumbnail || '/uploads/thumbnails/video-placeholder.jpg';
+                    thumbImg.style.cursor = 'pointer';
+                    thumbImg.style.display = 'block';
+                    thumbImg.title = 'Click asset preview frame to activate processing playback streams';
+
+                    const actionOverlay = document.createElement('div');
+                    actionOverlay.style.position = 'absolute';
+                    actionOverlay.style.top = '50%';
+                    actionOverlay.style.left = '50%';
+                    actionOverlay.style.transform = 'translate(-50%, -50%)';
+                    actionOverlay.style.background = 'rgba(18, 18, 18, 0.8)';
+                    actionOverlay.style.padding = '6px 12px';
+                    actionOverlay.style.borderRadius = '4px';
+                    actionOverlay.style.color = '#ffffff';
+                    actionOverlay.style.fontSize = '11px';
+                    actionOverlay.style.fontWeight = 'bold';
+                    actionOverlay.style.pointerEvents = 'none';
+                    actionOverlay.textContent = '▶ ACTIVATE PREVIEW';
+
+                    mediaBox.appendChild(thumbImg);
+                    mediaBox.appendChild(actionOverlay);
+
+                    // Dynamic runtime playback generation upon interaction click
+                    thumbImg.addEventListener('click', () => {
+                        mediaBox.innerHTML = '';
+                        const liveVideoNode = document.createElement('video');
+                        liveVideoNode.src = item.src;
+                        liveVideoNode.controls = true;
+                        liveVideoNode.autoplay = true;
+                        liveVideoNode.style.width = '100%';
+                        liveVideoNode.style.height = '100%';
+                        mediaBox.appendChild(liveVideoNode);
+                    });
+                } else if (item.type === 'text') {
+                    // Visual formatting rendering wrapper inside the queue context loop blocks
+                    const textSnippet = document.createElement('div');
+                    textSnippet.style.padding = '12px';
+                    textSnippet.style.fontSize = '12px';
+                    textSnippet.style.color = '#ffffff';
+                    textSnippet.style.overflowY = 'auto';
+                    textSnippet.style.height = '100%';
+                    textSnippet.style.whiteSpace = 'pre-wrap';
+                    textSnippet.textContent = item.message || '';
+                    mediaBox.appendChild(textSnippet);
                 } else {
                     const img = document.createElement('img');
                     img.src = item.src;
@@ -477,6 +595,140 @@
                 alert('Network request execution error processing verification steps.');
             }
         }
+
+        // FEATURE IMPLEMENTATION: Custom ordering shift controls mapping array mutations cleanly
+        function renderReorderInterface() {
+            const container = document.getElementById('reorderBoardsContainer');
+            container.innerHTML = '';
+            
+            const orderedKeys = Object.keys(serverCache.boards).sort((a, b) => {
+                return (serverCache.boards[a].position || 0) - (serverCache.boards[b].position || 0);
+            });
+
+            if (orderedKeys.length === 0) {
+                container.innerHTML = '<div style="color: #aaaaaa; font-style: italic; font-size:12px;">No active boards deployed to arrange.</div>';
+                return;
+            }
+
+            orderedKeys.forEach((key, index) => {
+                const boardItem = serverCache.boards[key];
+                
+                const itemRow = document.createElement('div');
+                itemRow.className = 'order-row-item';
+                itemRow.setAttribute('data-target-key', key);
+
+                const itemLabel = document.createElement('span');
+                itemLabel.textContent = `[Index: ${index}] /${key}/ — ${boardItem.title}`;
+
+                const processingCluster = document.createElement('div');
+                processingCluster.className = 'order-btn-cluster';
+
+                const upMoveBtn = document.createElement('button');
+                upMoveBtn.textContent = '▲';
+                upMoveBtn.type = 'button';
+                if (index === 0) upMoveBtn.disabled = true;
+                upMoveBtn.addEventListener('click', () => mutateBoardSequencePositions(orderedKeys, index, -1));
+
+                const downMoveBtn = document.createElement('button');
+                downMoveBtn.textContent = '▼';
+                downMoveBtn.type = 'button';
+                if (index === orderedKeys.length - 1) downMoveBtn.disabled = true;
+                downMoveBtn.addEventListener('click', () => mutateBoardSequencePositions(orderedKeys, index, 1));
+
+                processingCluster.appendChild(upMoveBtn);
+                processingCluster.appendChild(downMoveBtn);
+                itemRow.appendChild(itemLabel);
+                itemRow.appendChild(processingCluster);
+                container.appendChild(itemRow);
+            });
+        }
+
+        function mutateBoardSequencePositions(listArray, cursorIndex, directionOffset) {
+            const desiredTargetIndex = cursorIndex + directionOffset;
+            if (desiredTargetIndex < 0 || desiredTargetIndex >= listArray.length) return;
+
+            // Swap values safely inside tracking array indexes
+            const elementHolder = listArray[cursorIndex];
+            listArray[cursorIndex] = listArray[desiredTargetIndex];
+            listArray[desiredTargetIndex] = elementHolder;
+
+            // Structural local property index normalization update mapping
+            listArray.forEach((boardKey, newPositionIndex) => {
+                serverCache.boards[boardKey].position = newPositionIndex;
+            });
+
+            renderReorderInterface();
+            populateSelectorDropdowns();
+        }
+
+        document.getElementById('reorderBoardsForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const reorderStatusNode = document.getElementById('reorderStatusMsg');
+            reorderStatusNode.textContent = '';
+
+            const serializedSequenceArray = [];
+            const rows = document.querySelectorAll('#reorderBoardsContainer > .order-row-item');
+            rows.forEach(item => {
+                serializedSequenceArray.push(item.getAttribute('data-target-key'));
+            });
+
+            try {
+                const res = await fetch('/api/boards/reorder', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-admin-password': getAuthPassword()
+                    },
+                    body: JSON.stringify({ order: serializedSequenceArray })
+                });
+                const responseData = await res.json();
+                if (res.ok && responseData.success) {
+                    reorderStatusNode.style.color = '#b5bd68';
+                    reorderStatusNode.textContent = 'Custom sequencing arrays mapped down cleanly to the host database registers!';
+                    synchroniseState();
+                } else {
+                    reorderStatusNode.style.color = '#cf6679';
+                    reorderStatusNode.textContent = responseData.error || 'Server processing mutation error mapping array fields.';
+                }
+            } catch (err) {
+                reorderStatusNode.style.color = '#cf6679';
+                reorderStatusNode.textContent = 'Connectivity failure executing backend tracking update procedures.';
+            }
+        });
+
+        // FEATURE IMPLEMENTATION: Downloader pipeline calling file system generation endpoints
+        document.getElementById('downloadBoardForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const targetBoardHandle = document.getElementById('downloadBoardSelector').value;
+            if (!targetBoardHandle) return alert('Select target node category before running archive requests.');
+
+            const accessPass = getAuthPassword();
+            const trackingRouteUrl = `/api/boards/download/${targetBoardHandle}`;
+
+            // Handle stream processing securely passing master password verification headers
+            fetch(trackingRouteUrl, {
+                headers: { 'x-admin-password': accessPass }
+            })
+            .then(res => {
+                if (!res.ok) {
+                    return res.json().then(parsedErr => { throw new Error(parsedErr.error || 'Archive bundle processing fault.'); });
+                }
+                return res.blob();
+            })
+            .then(downloadedBlob => {
+                const temporaryUrlPointer = window.URL.createObjectURL(downloadedBlob);
+                const dynamicAnchorElement = document.createElement('a');
+                dynamicAnchorElement.href = temporaryUrlPointer;
+                dynamicAnchorElement.download = `darkchan-board-${targetBoardHandle}-export.zip`;
+                document.body.appendChild(dynamicAnchorElement);
+                dynamicAnchorElement.click();
+                dynamicAnchorElement.remove();
+                window.URL.revokeObjectURL(temporaryUrlPointer);
+            })
+            .catch(errorContext => {
+                alert(errorContext.message || 'System network error encountered while processing raw stream outputs.');
+            });
+        });
 
         document.getElementById('createBoardForm').addEventListener('submit', async (e) => {
             e.preventDefault();
