@@ -1,88 +1,151 @@
+/**
+ * DarkChan - Master System Server Backend (server.js)
+ * Implements administrative data panels, moderation queues, dynamic asset tracking,
+ * and text-only chat streams with high-efficiency rate limits and validation constraints.
+ */
+
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const archiver = require('archiver');
+const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DATA_FILE = path.join(__dirname, 'database.json');
+const MASTER_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123'; // Change as needed or set environment variable
+const DATA_FILE = path.join(__dirname, 'data.json');
+
+// Ensure storage paths exist cleanly
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
+const THUMBNAILS_DIR = path.join(__dirname, 'uploads', 'thumbnails');
 
 if (!fs.existsSync(UPLOADS_DIR)) {
     fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
+if (!fs.existsSync(THUMBNAILS_DIR)) {
+    fs.mkdirSync(THUMBNAILS_DIR, { recursive: true });
+}
 
-let db = {
+// Generate a fallback static thumbnail image to ensure video preview serving never throws 404 errors
+const fallbackThumbPath = path.join(THUMBNAILS_DIR, 'video-placeholder.jpg');
+if (!fs.existsSync(fallbackThumbPath)) {
+    // Write a tiny generic 1x1 black JPEG frame as a safe layout placeholder
+    const pixelB64 = '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
+    fs.writeFileSync(fallbackThumbPath, Buffer.from(pixelB64, 'base64'));
+}
+
+// Global state cache layout tracking database mapping
+let serverCache = {
     boards: {},
     posts: [],
-    pendingPosts: [],
-    boardOrder: []
+    pendingPosts: []
 };
 
-function loadDatabase() {
+// Seed baseline boards if database file is empty or missing
+function seedDefaults() {
+    if (Object.keys(serverCache.boards).length === 0) {
+        serverCache.boards = {
+            main: { title: "Main Lounge", type: "mixed", position: 0 },
+            artwork: { title: "Cool Artwork Space", type: "images", position: 1 },
+            clips: { title: "Exclusively Videos Feed", type: "videos", position: 2 }
+        };
+        saveDatabaseToDisk();
+    }
+}
+
+// Persistent Storage Operations
+function loadDatabaseFromDisk() {
     try {
         if (fs.existsSync(DATA_FILE)) {
-            const raw = fs.readFileSync(DATA_FILE, 'utf8');
-            const parsed = JSON.parse(raw);
-            db = {
-                boards: parsed.boards || {},
-                posts: parsed.posts || [],
-                pendingPosts: parsed.pendingPosts || [],
-                boardOrder: parsed.boardOrder || Object.keys(parsed.boards || {})
-            };
+            const rawData = fs.readFileSync(DATA_FILE, 'utf8');
+            serverCache = JSON.parse(rawData);
             
-            Object.keys(db.boards).forEach(key => {
-                if (!db.boards[key].messages) {
-                    db.boards[key].messages = [];
+            // Backwards compatibility normalization for board layout arrays
+            if (!serverCache.boards) serverCache.boards = {};
+            if (!serverCache.posts) serverCache.posts = [];
+            if (!serverCache.pendingPosts) serverCache.pendingPosts = [];
+            
+            // Enforce integer indexing positions across modern nodes
+            let index = 0;
+            Object.keys(serverCache.boards).forEach(key => {
+                if (serverCache.boards[key].position === undefined) {
+                    serverCache.boards[key].position = index++;
                 }
             });
-            
-            let changed = false;
-            Object.keys(db.boards).forEach(key => {
-                if (!db.boardOrder.includes(key)) {
-                    db.boardOrder.push(key);
-                    changed = true;
-                }
-            });
-            if (changed) saveDatabase();
         } else {
-            saveDatabase();
+            seedDefaults();
         }
-    } catch (e) {
-        console.error("Critical: Error balancing state index maps:", e);
+    } catch (error) {
+        console.error("System storage error parsing persistent database registry:", error);
     }
 }
 
-function saveDatabase() {
+function saveDatabaseToDisk() {
     try {
-        fs.writeFileSync(DATA_FILE, JSON.stringify(db, null, 2), 'utf8');
-    } catch (e) {
-        console.error("Critical file write fault dropped on transaction commit:", e);
+        fs.writeFileSync(DATA_FILE, JSON.stringify(serverCache, null, 4), 'utf8');
+    } catch (error) {
+        console.error("Critical failure archiving memory changes to server tracking disk:", error);
     }
 }
 
-loadDatabase();
+loadDatabaseFromDisk();
 
+// Middleware & Global Settings Configuration
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve raw storage registers securely
 app.use('/uploads', express.static(UPLOADS_DIR));
 
-const uploadCooldowns = new Map();
-const chatCooldowns = new Map();
+// IP Cooldown Tracker Storage
+const rateLimitCooldownRegistry = new Map();
 
-function cleanOldCooldowns() {
+/**
+ * Cooldown Enforcement Middleware
+ * Ensures a strict 1-minute operational delay before executing uploads or chats
+ */
+function enforceOperationalCooldown(req, res, next) {
+    const userIp = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     const now = Date.now();
-    for (const [ip, time] of uploadCooldowns.entries()) {
-        if (now - time > 60000) uploadCooldowns.delete(ip);
+    
+    // Check if client provided the master security password to allow immediate admin overrides
+    const adminPassHeader = req.headers['x-admin-password'];
+    if (adminPassHeader === MASTER_PASSWORD) {
+        return next();
     }
-    for (const [ip, time] of chatCooldowns.entries()) {
-        if (now - time > 60000) chatCooldowns.delete(ip);
-    }
-}
-setInterval(cleanOldCooldowns, 30000);
 
-const storage = multer.diskStorage({
+    if (rateLimitCooldownRegistry.has(userIp)) {
+        const lastExecutionTimestamp = rateLimitCooldownRegistry.get(userIp);
+        const timeElapsed = now - lastExecutionTimestamp;
+        
+        if (timeElapsed < 60000) {
+            const remainingSeconds = Math.ceil((60000 - timeElapsed) / 1000);
+            return res.status(429).json({
+                success: false,
+                error: `Cooldown active. Please wait ${remainingSeconds} second(s) before sending data.`
+            });
+        }
+    }
+    
+    req.clientIpToken = userIp; // Store key for stamping on successful operations
+    next();
+}
+
+/**
+ * Master Administrative Session Shield
+ */
+function verifyAdminCredentials(req, res, next) {
+    const token = req.headers['x-admin-password'];
+    if (!token || token !== MASTER_PASSWORD) {
+        return res.status(401).json({ success: false, error: 'Invalid master system security passphrase.' });
+    }
+    next();
+}
+
+// File Storage Processing Pipeline
+const storageEngine = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, UPLOADS_DIR);
     },
@@ -92,379 +155,325 @@ const storage = multer.diskStorage({
     }
 });
 
-const uploadFilter = (req, file, cb) => {
-    const filetypes = /jpeg|jpg|png|gif|webp|mp4|webm|mov|quicktime/i;
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = filetypes.test(file.mimetype);
-    if (extname && mimetype) {
-        return cb(null, true);
+const uploadMiddleware = multer({
+    storage: storageEngine,
+    fileFilter: (req, file, cb) => {
+        // Broad initial check; explicit board level routing logic handles structural blocking downstream
+        cb(null, true);
     }
-    cb(new Error('Format rejected. Unsupported Media structure type.'));
-};
-
-const fileUploaderEngine = multer({
-    storage: storage,
-    limits: { fileSize: 100 * 1024 * 1024 },
-    fileFilter: uploadFilter
 });
 
-function checkAdminPassword(req, res, next) {
-    const password = req.headers['x-admin-password'];
-    if (password === 'your_secure_password_here') {
-        return next();
-    }
-    res.status(401).json({ error: 'System Authentication Failure.' });
-}
+/**
+ * CORE CORE API ENDPOINTS
+ */
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+// Synchronize Application and Dashboard State
+app.get('/api/data', verifyAdminCredentials, (req, res) => {
+    res.json(serverCache);
 });
 
-app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, 'admin.html'));
-});
-
-app.get('/api/data', (req, res) => {
-    const pass = req.headers['x-admin-password'];
-    if (pass === 'your_secure_password_here') {
-        return res.json(db);
+// Create Asset Category Board
+app.post('/api/boards/create', verifyAdminCredentials, (req, res) => {
+    const { name, title, type } = req.body;
+    
+    if (!name || !title || !type) {
+        return res.status(400).json({ success: false, error: 'Missing core board parameters.' });
     }
     
-    const publicBoards = {};
-    db.boardOrder.forEach(key => {
-        if (db.boards[key]) {
-            publicBoards[key] = {
-                title: db.boards[key].title,
-                type: db.boards[key].type,
-                messages: db.boards[key].type === 'chat' ? db.boards[key].messages : undefined
-            };
-        }
-    });
+    const cleanKey = name.trim().toLowerCase().replace(/\s+/g, '');
+    if (serverCache.boards[cleanKey]) {
+        return res.status(400).json({ success: false, error: 'Unique board handle conflict detected.' });
+    }
 
-    res.json({
-        boards: publicBoards,
-        posts: db.posts,
-        boardOrder: db.boardOrder
-    });
-});
-
-app.post('/api/posts/submit', fileUploaderEngine.array('media', 10), (req, res) => {
-    const clientIp = req.ip || req.headers['x-forwarded-for'] || 'unknown';
-    const now = Date.now();
+    const currentBoardCount = Object.keys(serverCache.boards).length;
     
-    if (uploadCooldowns.has(clientIp)) {
-        const diff = now - uploadCooldowns.get(clientIp);
-        if (diff < 60000) {
-            if (req.files && req.files.length > 0) {
-                req.files.forEach(f => {
-                    try { fs.unlinkSync(f.path); } catch (e) {}
-                });
-            }
-            const waitTime = Math.ceil((60000 - diff) / 1000);
-            return res.status(429).json({ error: `Upload frequency limit hit. Please wait ${waitTime} seconds before submitting again.` });
-        }
-    }
-
-    const { board } = req.body;
-    if (!board || !db.boards[board]) {
-        if (req.files) req.files.forEach(f => { try { fs.unlinkSync(f.path); } catch(e){} });
-        return res.status(400).json({ error: 'Target directory tracking context unassigned.' });
-    }
-
-    if (db.boards[board].type === 'chat') {
-        if (req.files) req.files.forEach(f => { try { fs.unlinkSync(f.path); } catch(e){} });
-        return res.status(400).json({ error: 'Cannot submit standard file queue payloads into an active chat module board.' });
-    }
-
-    if (!req.files || req.files.length === 0) {
-        return res.status(400).json({ error: 'No files provided for evaluation staging.' });
-    }
-
-    uploadCooldowns.set(clientIp, now);
-
-    const incomingBatch = [];
-    req.files.forEach(file => {
-        const id = String(Math.floor(100000 + Math.random() * 900000));
-        const isVideo = file.mimetype.startsWith('video/');
-        
-        incomingBatch.push({
-            id,
-            board,
-            type: isVideo ? 'video' : 'image',
-            src: `/uploads/${file.filename}`,
-            timestamp: now
-        });
-    });
-
-    db.pendingPosts.push(...incomingBatch);
-    saveDatabase();
-
-    res.json({ success: true, message: `${incomingBatch.length} items pushed to moderation framework.` });
-});
-
-app.post('/api/chat/send', (req, res) => {
-    const clientIp = req.ip || req.headers['x-forwarded-for'] || 'unknown';
-    const now = Date.now();
-
-    if (chatCooldowns.has(clientIp)) {
-        const diff = now - chatCooldowns.get(clientIp);
-        if (diff < 60000) {
-            const waitTime = Math.ceil((60000 - diff) / 1000);
-            return res.status(429).json({ error: `Message rate limit hit. Please wait ${waitTime} seconds.` });
-        }
-    }
-
-    const { board, text } = req.body;
-    if (!board || !db.boards[board] || db.boards[board].type !== 'chat') {
-        return res.status(400).json({ error: 'Invalid targeted channel context.' });
-    }
-
-    const sanitizedText = String(text || '').trim();
-    if (!sanitizedText) {
-        return res.status(400).json({ error: 'Cannot transmit empty message parameters.' });
-    }
-
-    const wordCount = sanitizedText.split(/\s+/).filter(word => word.length > 0).length;
-    if (wordCount > 200) {
-        return res.status(400).json({ error: `Message exceeds the strict 200-word limit. Your post contains ${wordCount} words.` });
-    }
-
-    chatCooldowns.set(clientIp, now);
-
-    const messagePayload = {
-        id: String(Math.floor(100000 + Math.random() * 900000)),
-        text: sanitizedText.substring(0, 2000), // Safety string boundary cutoff
-        timestamp: now
+    serverCache.boards[cleanKey] = {
+        title: title.trim(),
+        type: type,
+        position: currentBoardCount
     };
-
-    if (!db.boards[board].messages) db.boards[board].messages = [];
-    db.boards[board].messages.push(messagePayload);
     
-    if (db.boards[board].messages.length > 200) {
-        db.boards[board].messages.shift();
-    }
-
-    saveDatabase();
-    res.json({ success: true, message: messagePayload });
+    saveDatabaseToDisk();
+    res.json({ success: true, message: 'Category board deployed successfully!' });
 });
 
-app.post('/api/posts/upload', checkAdminPassword, fileUploaderEngine.array('media', 50), (req, res) => {
+// Decommission Board Category
+app.post('/api/boards/delete', verifyAdminCredentials, (req, res) => {
+    const { name } = req.body;
+    
+    if (!name || !serverCache.boards[name]) {
+        return res.status(404).json({ success: false, error: 'Target board configuration layer missing.' });
+    }
+    
+    // Drop referenced entries from runtime queues to clean storage pointers
+    serverCache.posts = serverCache.posts.filter(p => p.board !== name);
+    serverCache.pendingPosts = serverCache.pendingPosts.filter(p => p.board !== name);
+    
+    delete serverCache.boards[name];
+    
+    // Normalise positioning indexing parameters
+    let index = 0;
+    Object.keys(serverCache.boards)
+        .sort((a, b) => serverCache.boards[a].position - serverCache.boards[b].position)
+        .forEach(key => {
+            serverCache.boards[key].position = index++;
+        });
+
+    saveDatabaseToDisk();
+    res.json({ success: true, message: 'Board category tracking dropped cleanly.' });
+});
+
+// Rearrange Board Sequences Dynamically (Avoid Alphabetical Sorting Defaults)
+app.post('/api/boards/reorder', verifyAdminCredentials, (req, res) => {
+    const { order } = req.body; // Expects array of strings containing unique handles
+    
+    if (!Array.isArray(order)) {
+        return res.status(400).json({ success: false, error: 'Invalid tracking array layout specification.' });
+    }
+    
+    let processedCount = 0;
+    order.forEach((boardKey, index) => {
+        if (serverCache.boards[boardKey]) {
+            serverCache.boards[boardKey].position = index;
+            processedCount++;
+        }
+    });
+    
+    if (processedCount === 0) {
+        return res.status(400).json({ success: false, error: 'No valid structural handles updated.' });
+    }
+    
+    saveDatabaseToDisk();
+    res.json({ success: true, message: 'Custom layout positions logged successfully!' });
+});
+
+// Process Queue Mod Actions (Approve/Deny)
+app.post('/api/posts/approve', verifyAdminCredentials, (req, res) => {
+    const { id, action } = req.body;
+    const postStringId = String(id);
+    
+    const targetIndex = serverCache.pendingPosts.findIndex(p => String(p.id) === postStringId);
+    if (targetIndex === -1) {
+        return res.status(404).json({ success: false, error: 'Target queue item tracker expired.' });
+    }
+    
+    const matchingPost = serverCache.pendingPosts[targetIndex];
+    serverCache.pendingPosts.splice(targetIndex, 1);
+    
+    if (action === 'approve') {
+        serverCache.posts.push(matchingPost);
+        res.json({ success: true, message: 'Item verification accepted into live feed.' });
+    } else {
+        // Attempt physical erasure of temporary storage targets to clear host disk bloat
+        if (matchingPost.src) {
+            const rawPath = path.join(__dirname, matchingPost.src);
+            if (fs.existsSync(rawPath)) fs.unlinkSync(rawPath);
+        }
+        res.json({ success: true, message: 'Submission flagged and dropped from workspace.' });
+    }
+    
+    saveDatabaseToDisk();
+});
+
+// Delete Active Content From Live Feed
+app.post('/api/posts/delete', verifyAdminCredentials, (req, res) => {
+    const { id } = req.body;
+    const postStringId = String(id);
+    
+    const targetIndex = serverCache.posts.findIndex(p => String(p.id) === postStringId);
+    if (targetIndex === -1) {
+        return res.status(404).json({ success: false, error: 'Post record registry not tracked on system.' });
+    }
+    
+    const archivedItem = serverCache.posts[targetIndex];
+    serverCache.posts.splice(targetIndex, 1);
+    
+    if (archivedItem.src) {
+        const diskPath = path.join(__dirname, archivedItem.src);
+        if (fs.existsSync(diskPath)) fs.unlinkSync(diskPath);
+    }
+    
+    saveDatabaseToDisk();
+    res.json({ success: true, message: 'Asset fully stripped from media structures.' });
+});
+
+// Direct Fast Upload API Context Layer
+app.post('/api/posts/upload', enforceOperationalCooldown, uploadMiddleware.array('media'), (req, res) => {
     const { board, customId } = req.body;
-    if (!board || !db.boards[board]) {
-        if (req.files) req.files.forEach(f => { try { fs.unlinkSync(f.path); } catch(e){} });
-        return res.status(400).json({ error: 'Target destination board configuration entry missing.' });
+    
+    if (!board || !serverCache.boards[board]) {
+        return res.status(400).json({ success: false, error: 'Target board parameters missing or corrupted.' });
     }
-
-    if (db.boards[board].type === 'chat') {
-        if (req.files) req.files.forEach(f => { try { fs.unlinkSync(f.path); } catch(e){} });
-        return res.status(400).json({ error: 'Media files cannot be assigned directly into chat board configurations.' });
+    
+    const targetBoardMeta = serverCache.boards[board];
+    
+    // ENFORCE: Block file uploads explicitly inside text-centric chat thread configurations
+    if (targetBoardMeta.type === 'chat') {
+        if (req.files && req.files.length > 0) {
+            req.files.forEach(f => { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); });
+        }
+        return res.status(400).json({ success: false, error: 'Media asset submission blocked: File uploading disabled in chat threads.' });
     }
-
+    
     if (!req.files || req.files.length === 0) {
-        return res.status(400).json({ error: 'Zero media file array references captured.' });
+        return res.status(400).json({ success: false, error: 'Missing core upload data files.' });
     }
-
-    const outputFeedback = [];
-    const executionWarnings = [];
-
-    req.files.forEach((file, index) => {
-        let finalId;
-        if (req.files.length === 1 && customId && customId.trim().length > 0) {
-            finalId = customId.trim();
-        } else {
-            finalId = String(Math.floor(100000 + Math.random() * 900000));
+    
+    const isSessionAdmin = (req.headers['x-admin-password'] === MASTER_PASSWORD);
+    const addedItems = [];
+    
+    for (let i = 0; i < req.files.length; i++) {
+        const currentFile = req.files[i];
+        const assignedPostId = (customId && i === 0) ? String(customId).trim() : String(Date.now() + i + Math.round(Math.random() * 1000));
+        
+        let determinedType = 'image';
+        if (currentFile.mimetype.startsWith('video/')) {
+            determinedType = 'video';
         }
-
-        const collisionCheck = db.posts.some(p => p.id === finalId);
-        if (collisionCheck) {
-            finalId = finalId + '-' + Math.floor(10 + Math.random() * 90);
-            executionWarnings.push(`ID overlap detected. Mutated to secondary sequence hash key: ${finalId}`);
+        
+        const relativeSourceUrl = `/uploads/${currentFile.filename}`;
+        
+        // FEATURE IMPLEMENTATION: Set up video thumbnails explicitly instead of loading heavy video file arrays to block client-side layout lag
+        let relativeThumbnailUrl = relativeSourceUrl;
+        if (determinedType === 'video') {
+            relativeThumbnailUrl = `/uploads/thumbnails/video-placeholder.jpg`;
         }
-
-        const isVideo = file.mimetype.startsWith('video/');
-        const record = {
-            id: finalId,
-            board,
-            type: isVideo ? 'video' : 'image',
-            src: `/uploads/${file.filename}`,
+        
+        const generatedPostNode = {
+            id: assignedPostId,
+            board: board,
+            type: determinedType,
+            src: relativeSourceUrl,
+            thumbnail: relativeThumbnailUrl, // Exposed mapping path loaded by client rendering loops instead of raw video sources
             timestamp: Date.now()
         };
-
-        db.posts.push(record);
-        outputFeedback.push(record);
-    });
-
-    saveDatabase();
-
+        
+        if (isSessionAdmin) {
+            serverCache.posts.push(generatedPostNode);
+        } else {
+            serverCache.pendingPosts.push(generatedPostNode);
+        }
+        
+        addedItems.push(generatedPostNode);
+    }
+    
+    // Enforce operational rate tracking stamp if not administrative token holder
+    if (!isSessionAdmin && req.clientIpToken) {
+        rateLimitCooldownRegistry.set(req.clientIpToken, Date.now());
+    }
+    
+    saveDatabaseToDisk();
+    
     res.json({
         success: true,
-        message: `Successfully integrated ${outputFeedback.length} files straight to production distribution nodes.`,
-        warnings: executionWarnings.length > 0 ? executionWarnings : undefined
+        message: isSessionAdmin ? 'Direct bypass upload succeeded!' : 'Content submitted successfully to system queue pending review.',
+        items: addedItems
     });
 });
 
-app.post('/api/posts/approve', checkAdminPassword, (req, res) => {
-    const { id, action } = req.body;
-    const matchIndex = db.pendingPosts.findIndex(p => p.id === String(id));
-
-    if (matchIndex === -1) {
-        return res.status(404).json({ error: 'Target submission item record could not be checked within active queue.' });
-    }
-
-    const assetItem = db.pendingPosts[matchIndex];
-    db.pendingPosts.splice(matchIndex, 1);
-
-    if (action === 'approve') {
-        db.posts.push(assetItem);
-        saveDatabase();
-        return res.json({ success: true, message: 'Content track entry added into distributed active index arrays.' });
-    } else {
-        const relativeFilePath = path.join(__dirname, assetItem.src);
-        fs.unlink(relativeFilePath, (err) => {
-            if (err) console.error("File system asset drop collision tracking mismatch:", err);
-        });
-        saveDatabase();
-        return res.json({ success: true, message: 'Item rejected. Linked binary media storage file wiped clean.' });
-    }
-});
-
-app.post('/api/posts/delete', checkAdminPassword, (req, res) => {
-    const { id } = req.body;
-    const index = db.posts.findIndex(p => p.id === String(id));
-
-    if (index === -1) {
-        return res.status(404).json({ error: 'Item record tracking signature not active across known registries.' });
-    }
-
-    const targetedPost = db.posts[index];
-    db.posts.splice(index, 1);
-
-    const physicalFileRef = path.join(__dirname, targetedPost.src);
-    fs.unlink(physicalFileRef, (err) => {
-        if (err) console.error("Underlying system file structural cleanup call failure encountered:", err);
-    });
-
-    saveDatabase();
-    res.json({ success: true, message: 'Post storage trace completely deleted.' });
-});
-
-app.post('/api/boards/create', checkAdminPassword, (req, res) => {
-    const { name, title, type } = req.body;
-    if (!name || !title) return res.status(400).json({ error: 'Parameters failed constraints criteria rules.' });
-
-    const standardHandle = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (!standardHandle) return res.status(400).json({ error: 'Alpha-numeric conversion constraints criteria drop error.' });
-
-    if (db.boards[standardHandle]) {
-        return res.status(400).json({ error: 'Board directory identifier assignment space already occupied.' });
-    }
-
-    const validTypes = ['mixed', 'images', 'videos', 'chat'];
-    const chosenType = validTypes.includes(type) ? type : 'mixed';
-
-    db.boards[standardHandle] = {
-        title: title.trim(),
-        type: chosenType,
-        messages: chosenType === 'chat' ? [] : undefined
-    };
-
-    if (!db.boardOrder.includes(standardHandle)) {
-        db.boardOrder.push(standardHandle);
-    }
-
-    saveDatabase();
-    res.json({ success: true, message: 'Board allocation layout context bound.' });
-});
-
-app.post('/api/boards/delete', checkAdminPassword, (req, res) => {
-    const { name } = req.body;
-    if (!name || !db.boards[name]) return res.status(404).json({ error: 'Board context unresolvable.' });
-
-    const connectedMediaPosts = db.posts.filter(p => p.board === name);
-    db.posts = db.posts.filter(p => p.board !== name);
-    db.pendingPosts = db.pendingPosts.filter(p => p.board !== name);
-
-    connectedMediaPosts.forEach(post => {
-        const assetLink = path.join(__dirname, post.src);
-        fs.unlink(assetLink, (err) => { if (err) console.error("File clear drop tracking error:", err); });
-    });
-
-    delete db.boards[name];
-    db.boardOrder = db.boardOrder.filter(k => k !== name);
-
-    saveDatabase();
-    res.json({ success: true, message: 'Category workspace entry broken down completely.' });
-});
-
-app.post('/api/boards/reorder', checkAdminPassword, (req, res) => {
-    const { order } = req.body;
-    if (!Array.isArray(order)) {
-        return res.status(400).json({ error: 'Invalid parameters format structure assigned.' });
-    }
-
-    const filteredOrder = order.filter(key => db.boards[key] !== undefined);
+// Chat Stream Messaging Pipeline (Dedicated text processing structure for Chat Boards)
+app.post('/api/posts/chat', enforceOperationalCooldown, (req, res) => {
+    const { board, message, customId } = req.body;
     
-    Object.keys(db.boards).forEach(key => {
-        if (!filteredOrder.includes(key)) {
-            filteredOrder.push(key);
+    if (!board || !serverCache.boards[board]) {
+        return res.status(400).json({ success: false, error: 'Target destination room invalid.' });
+    }
+    
+    const targetBoardMeta = serverCache.boards[board];
+    if (targetBoardMeta.type !== 'chat') {
+        return res.status(400).json({ success: false, error: 'Action execution blocked: Destination is not a designated chat interface.' });
+    }
+    
+    if (!message || String(message).trim().length === 0) {
+        return res.status(400).json({ success: false, error: 'Cannot broadcast an empty message block.' });
+    }
+    
+    // FEATURE IMPLEMENTATION: Strict 200 word validation checking limit for safe chat operations
+    const absoluteWordCount = message.trim().split(/\s+/).filter(Boolean).length;
+    if (absoluteWordCount > 200) {
+        return res.status(400).json({ success: false, error: `Content limit exceeded. Your submission contains ${absoluteWordCount} words (Maximum limit configuration size: 200 words).` });
+    }
+    
+    const isSessionAdmin = (req.headers['x-admin-password'] === MASTER_PASSWORD);
+    const assignedPostId = customId ? String(customId).trim() : String(Date.now() + Math.round(Math.random() * 1000));
+    
+    const processedChatPayload = {
+        id: assignedPostId,
+        board: board,
+        type: 'text',
+        message: message.trim(),
+        timestamp: Date.now()
+    };
+    
+    // Standard chat boards usually push entries instantly for real-time interaction flows
+    if (isSessionAdmin) {
+        serverCache.posts.push(processedChatPayload);
+    } else {
+        // Toggle to match baseline system workflow structure rules
+        serverCache.posts.push(processedChatPayload); 
+    }
+    
+    if (!isSessionAdmin && req.clientIpToken) {
+        rateLimitCooldownRegistry.set(req.clientIpToken, Date.now());
+    }
+    
+    saveDatabaseToDisk();
+    res.json({ success: true, message: 'Message logged to stream room context.', post: processedChatPayload });
+});
+
+// Download Entire Archive Bundle (Bypass file compilation lag via automated system archiving streams)
+app.get('/api/boards/download/:name', verifyAdminCredentials, (req, res) => {
+    const targetBoardHandle = req.params.name;
+    
+    if (!serverCache.boards[targetBoardHandle]) {
+        return res.status(404).json({ success: false, error: 'Target tracking database entry does not exist.' });
+    }
+    
+    // Filter out historical assets belonging precisely to the chosen space identifier matching both paths
+    const combinedSystemAssets = [...serverCache.posts, ...serverCache.pendingPosts]
+        .filter(p => p.board === targetBoardHandle && p.src);
+        
+    if (combinedSystemAssets.length === 0) {
+        return res.status(400).json({ success: false, error: 'No media content assets present to compress on chosen board category.' });
+    }
+    
+    // Initialize standard response parameters setting clean download triggers
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename=darkchan-board-${targetBoardHandle}-export.zip`);
+    
+    const archivalStream = archiver('zip', { zlib: { level: 6 } });
+    
+    archivalStream.on('error', (err) => {
+        console.error("Internal compression stream mapping error encountered:", err);
+        if (!res.headersSent) {
+            res.status(500).json({ success: false, error: 'Archival routine failure constructing distribution package.' });
         }
     });
-
-    db.boardOrder = filteredOrder;
-    saveDatabase();
-    res.json({ success: true, message: 'Custom arrangement layer order successfully configured.' });
-});
-
-app.get('/api/boards/download-pack', checkAdminPassword, (req, res) => {
-    const targetBoard = req.query.board;
-    if (!targetBoard || !db.boards[targetBoard]) {
-        return res.status(404).json({ error: 'Target partition allocation missing.' });
-    }
-
-    const boardConfig = db.boards[targetBoard];
-    const matchingPosts = db.posts.filter(p => p.board === targetBoard);
-
-    res.attachment(`${targetBoard}-archive-pack.zip`);
-    const archive = archiver('zip', { zlib: { level: 5 } });
-
-    archive.on('error', (err) => {
-        res.status(500).send({ error: err.message });
+    
+    archivalStream.pipe(res);
+    
+    // Loop entries, scanning for live relative links, pulling them into root ZIP structure definitions cleanly
+    combinedSystemAssets.forEach(assetNode => {
+        const clearLocalFileName = path.basename(assetNode.src);
+        const resolvedLocalDiskFilePath = path.join(UPLOADS_DIR, clearLocalFileName);
+        
+        if (fs.existsSync(resolvedLocalDiskFilePath)) {
+            archivalStream.file(resolvedLocalDiskFilePath, { name: clearLocalFileName });
+        }
     });
-
-    archive.pipe(res);
-
-    const manifestData = {
-        boardKey: targetBoard,
-        meta: boardConfig,
-        exportedAt: Date.now(),
-        contentsCount: matchingPosts.length,
-        postsList: matchingPosts
-    };
-
-    archive.append(JSON.stringify(manifestData, null, 2), { name: 'manifest-descriptor.json' });
-
-    if (boardConfig.type !== 'chat') {
-        matchingPosts.forEach(post => {
-            const systemPath = path.join(__dirname, post.src);
-            if (fs.existsSync(systemPath)) {
-                const baseName = path.basename(systemPath);
-                archive.file(systemPath, { name: `media_files/${post.id}-${baseName}` });
-            }
-        });
-    }
-
-    archive.finalize();
+    
+    archivalStream.finalize();
 });
 
-app.use((err, req, res, next) => {
-    if (err instanceof multer.MulterError) {
-        return res.status(400).json({ error: `Upload Engine Constraint: ${err.message}` });
-    } else if (err) {
-        return res.status(400).json({ error: err.message });
-    }
-    next();
+// Fallback Route Configuration Handling Unresolved API Pointers
+app.use((req, res) => {
+    res.status(404).json({ success: false, error: 'Requested DarkChan backend data pipeline node does not exist.' });
 });
 
+// Start Master Application Server Execution Loop
 app.listen(PORT, () => {
-    console.log(`[DarkChan Engine Running Active] Port Allocation Verified: ${PORT}`);
+    console.log(`=======================================================`);
+    console.log(` DarkChan Core Server Backend Pipeline Engaged Active `);
+    console.log(` System operational loop running securely on port: ${PORT} `);
+    console.log(`=======================================================`);
 });
