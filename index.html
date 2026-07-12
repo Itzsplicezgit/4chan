@@ -58,7 +58,6 @@
             .grid-layout { grid-template-columns: 1fr; }
         }
         
-        /* Board Selection List Styles */
         .board-list {
             list-style: none;
             display: flex;
@@ -88,7 +87,6 @@
             margin-top: 2px;
         }
 
-        /* Form Controls */
         .form-group {
             margin-bottom: 15px;
         }
@@ -118,7 +116,6 @@
             font-family: inherit;
         }
         
-        /* Custom Upload Styling Wrapper */
         .custom-file-upload {
             position: relative;
             display: inline-block;
@@ -176,7 +173,6 @@
             opacity: 1;
         }
 
-        /* Interactive Feed View Layout - Set to 4 per row */
         .feed-grid {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -190,7 +186,6 @@
             .feed-grid { grid-template-columns: 1fr; }
         }
         
-        /* Dynamic Placeholder to preserve scroll tracking layout height when culled */
         .feed-card {
             background: #1e1e1e;
             border: 1px solid #2d2d2d;
@@ -241,7 +236,6 @@
             font-weight: bold;
         }
 
-        /* Progress Utilities */
         .progress-box {
             display: none;
             margin-top: 12px;
@@ -284,6 +278,41 @@
         .counter-label.danger {
             color: #cf6679;
             font-weight: bold;
+        }
+
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #2d2d2d;
+        }
+        .pagination-btn {
+            width: auto;
+            padding: 8px 16px;
+            background: #2d2d2d;
+            border: 1px solid #3d3d3d;
+            color: #ffffff;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 4px;
+            transition: background 0.15s;
+        }
+        .pagination-btn:hover:not(:disabled) {
+            background: #3d3d3d;
+            border-color: #ffffff;
+        }
+        .pagination-btn:disabled {
+            background: #1e1e1e;
+            color: #555555;
+            border-color: #2d2d2d;
+            cursor: not-allowed;
+        }
+        .pagination-info {
+            font-size: 13px;
+            color: #aaaaaa;
         }
     </style>
 </head>
@@ -337,8 +366,8 @@
 
                 <div class="section-wrapper">
                     <h2 id="currentFeedTitle">Global Shared Feed</h2>
-                    <div class="feed-grid" id="mainDynamicFeedGrid">
-                        </div>
+                    <div class="feed-grid" id="mainDynamicFeedGrid"></div>
+                    <div class="pagination-container" id="feedPaginationControls"></div>
                 </div>
 
             </div>
@@ -350,9 +379,11 @@
         let localStateCache = { boards: {}, posts: [] };
         let activeBoardFilter = null;
         let cooldownInterval = null;
-        const COOLDOWN_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+        const COOLDOWN_DURATION = 5 * 60 * 1000;
 
-        // Bind standard file layout handlers at baseline initialization
+        let currentPage = 1;
+        const itemsPerPage = 12;
+
         function bindFileInputListener() {
             const fileEl = document.getElementById('publicMediaFile');
             if (fileEl) {
@@ -364,7 +395,6 @@
             }
         }
 
-        // Toggle dynamic configuration state structures depending on target selections
         function adjustFormFieldsForBoardType(boardKey) {
             const container = document.getElementById('dynamicInputContainer');
             if (!boardKey || !localStateCache.boards[boardKey]) {
@@ -387,7 +417,6 @@
                     <div class="counter-label" id="chatWordCounter">0 / 200 words</div>
                 `;
                 
-                // Track real-time word limits
                 const textarea = document.getElementById('chatMessageTextarea');
                 textarea.addEventListener('input', () => {
                     const words = textarea.value.trim().split(/\s+/).filter(Boolean).length;
@@ -417,7 +446,6 @@
             }
         }
 
-        // Target Board dropdown controller change bindings
         document.getElementById('submitTargetBoard').addEventListener('change', function(e) {
             adjustFormFieldsForBoardType(e.target.value);
         });
@@ -482,7 +510,6 @@
             }
         }
 
-        // FEATURE INTEGRATION: Sort sequence matching customized configuration indices explicitly
         function renderSequenceNavigation() {
             const listContainer = document.getElementById('alphabeticalBoardContainer');
             listContainer.innerHTML = '';
@@ -516,6 +543,7 @@
                         a.classList.add('active');
                         document.getElementById('currentFeedTitle').textContent = `Feed Context: /${key}/`;
                     }
+                    currentPage = 1;
                     renderDynamicMediaFeed();
                 });
 
@@ -530,7 +558,6 @@
             
             selector.innerHTML = '<option value="">Select Target...</option>';
             
-            // Keeps dropdown items tracking custom configuration sort index
             Object.keys(localStateCache.boards).sort((a, b) => {
                 return (localStateCache.boards[a].position || 0) - (localStateCache.boards[b].position || 0);
             }).forEach(key => {
@@ -547,7 +574,9 @@
 
         function renderDynamicMediaFeed() {
             const grid = document.getElementById('mainDynamicFeedGrid');
+            const paginationControls = document.getElementById('feedPaginationControls');
             grid.innerHTML = '';
+            paginationControls.innerHTML = '';
             
             mediaIntersectionObserver.disconnect();
 
@@ -560,7 +589,14 @@
                 return;
             }
 
-            targetItems.forEach(item => {
+            const totalPages = Math.ceil(targetItems.length / itemsPerPage);
+            if (currentPage > totalPages) currentPage = totalPages || 1;
+
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const paginatedItems = targetItems.slice(startIndex, endIndex);
+
+            paginatedItems.forEach(item => {
                 const card = document.createElement('div');
                 card.className = 'feed-card';
                 card.dataset.id = item.id;
@@ -569,7 +605,6 @@
                 card.dataset.msg = item.message || '';
                 card.dataset.thumb = item.thumbnail || '';
 
-                // Create placeholder visibility canvas panel
                 const contentBox = document.createElement('div');
                 contentBox.className = (item.type === 'text') ? 'chat-text-container' : 'media-container';
                 card.appendChild(contentBox);
@@ -582,9 +617,38 @@
                 grid.appendChild(card);
                 mediaIntersectionObserver.observe(card);
             });
+
+            if (totalPages > 1) {
+                const prevBtn = document.createElement('button');
+                prevBtn.className = 'pagination-btn';
+                prevBtn.textContent = 'Previous';
+                prevBtn.disabled = currentPage === 1;
+                prevBtn.addEventListener('click', () => {
+                    currentPage--;
+                    renderDynamicMediaFeed();
+                    document.getElementById('currentFeedTitle').scrollIntoView({ behavior: 'smooth' });
+                });
+
+                const pageInfo = document.createElement('span');
+                pageInfo.className = 'pagination-info';
+                pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+
+                const nextBtn = document.createElement('button');
+                nextBtn.className = 'pagination-btn';
+                nextBtn.textContent = 'Next';
+                nextBtn.disabled = currentPage === totalPages;
+                nextBtn.addEventListener('click', () => {
+                    currentPage++;
+                    renderDynamicMediaFeed();
+                    document.getElementById('currentFeedTitle').scrollIntoView({ behavior: 'smooth' });
+                });
+
+                paginationControls.appendChild(prevBtn);
+                paginationControls.appendChild(pageInfo);
+                paginationControls.appendChild(nextBtn);
+            }
         }
 
-        // Intersection Observer Core Configuration: Dynamic high-performance video thumbnails integration
         const mediaIntersectionObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 const card = entry.target;
@@ -602,22 +666,49 @@
                         if (type === 'text') {
                             contentBox.textContent = msg;
                         } else if (type === 'video') {
-                            // Render optimized lightweight preview thumbnail layer initially
-                            const imgThumb = document.createElement('img');
-                            imgThumb.src = thumb || '/uploads/thumbnails/video-placeholder.jpg';
-                            imgThumb.style.cursor = 'pointer';
-                            imgThumb.title = "Click to run media stream playback";
-                            
-                            // Setup click interaction to substitute player safely dynamically
-                            imgThumb.addEventListener('click', () => {
-                                contentBox.innerHTML = '';
-                                const video = document.createElement('video');
-                                video.src = src;
-                                video.controls = true;
-                                video.autoplay = true;
-                                contentBox.appendChild(video);
-                            });
-                            contentBox.appendChild(imgThumb);
+                            if (thumb) {
+                                const imgThumb = document.createElement('img');
+                                imgThumb.src = thumb;
+                                imgThumb.style.cursor = 'pointer';
+                                imgThumb.title = "Click to run media stream playback";
+                                
+                                imgThumb.addEventListener('click', () => {
+                                    contentBox.innerHTML = '';
+                                    const video = document.createElement('video');
+                                    video.src = src;
+                                    video.controls = true;
+                                    video.autoplay = true;
+                                    contentBox.appendChild(video);
+                                });
+                                contentBox.appendChild(imgThumb);
+                            } else {
+                                const videoThumb = document.createElement('video');
+                                videoThumb.src = src;
+                                videoThumb.muted = true;
+                                videoThumb.playsInline = true;
+                                videoThumb.style.cursor = 'pointer';
+                                videoThumb.title = "Click to run media stream playback";
+                                
+                                videoThumb.addEventListener('loadedmetadata', () => {
+                                    if (isFinite(videoThumb.duration)) {
+                                        videoThumb.currentTime = videoThumb.duration / 2;
+                                    }
+                                });
+
+                                videoThumb.addEventListener('seeked', function lockFrame() {
+                                    videoThumb.removeEventListener('seeked', lockFrame);
+                                });
+
+                                videoThumb.addEventListener('click', () => {
+                                    contentBox.innerHTML = '';
+                                    const video = document.createElement('video');
+                                    video.src = src;
+                                    video.controls = true;
+                                    video.autoplay = true;
+                                    contentBox.appendChild(video);
+                                });
+                                contentBox.appendChild(videoThumb);
+                            }
                         } else {
                             const img = document.createElement('img');
                             img.src = src;
@@ -636,7 +727,6 @@
             threshold: 0.01
         });
 
-        // Form pipeline controller matching routing interfaces smoothly
         document.getElementById('publicSubmissionForm').addEventListener('submit', function(e) {
             e.preventDefault();
 
@@ -670,7 +760,6 @@
                 }
                 
                 uploadEndpoint = '/api/posts/chat';
-                // Pass text string body elements mapping parameters safely
                 formData.append('message', textInput.value.trim());
             } else {
                 const fileInputEl = document.getElementById('publicMediaFile');
@@ -706,7 +795,7 @@
                     
                     localStorage.setItem('darkchan_last_upload', Date.now().toString());
                     checkClientCooldown();
-                    loadPlatformState(); // Instantly update view data sets
+                    loadPlatformState();
                 } else {
                     try {
                         const errData = JSON.parse(xhr.responseText);
@@ -751,7 +840,6 @@
             bindFileInputListener();
         });
         
-        // Setup internal loop checking every 10 seconds to keep elements live natively
         setInterval(loadPlatformState, 10000);
     </script>
 </body>
