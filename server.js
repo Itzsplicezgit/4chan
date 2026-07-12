@@ -96,6 +96,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve frontend static files located in root directory
+app.use(express.static(__dirname));
+
 // Serve raw storage registers securely
 app.use('/uploads', express.static(UPLOADS_DIR));
 
@@ -164,10 +167,15 @@ const uploadMiddleware = multer({
 });
 
 /**
- * CORE CORE API ENDPOINTS
+ * CORE API ENDPOINTS
  */
 
-// Synchronize Application and Dashboard State
+// Public Data Synchronization Pipeline for Frontend Client Interfacing
+app.get('/api/public/data', (req, res) => {
+    res.json(serverCache);
+});
+
+// Synchronize Application and Dashboard State (Admin Restricted)
 app.get('/api/data', verifyAdminCredentials, (req, res) => {
     res.json(serverCache);
 });
