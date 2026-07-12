@@ -48,7 +48,8 @@ function seedDefaults() {
         serverCache.boards = {
             main: { title: "Main Lounge", type: "mixed", position: 0 },
             artwork: { title: "Cool Artwork Space", type: "images", position: 1 },
-            clips: { title: "Exclusively Videos Feed", type: "videos", position: 2 }
+            clips: { title: "Exclusively Videos Feed", type: "videos", position: 2 },
+            lobby: { title: "General Chat Lobby", type: "chat", position: 3 } // Added default chat channel to fix room invalid rejections
         };
         saveDatabaseToDisk();
     }
@@ -451,6 +452,7 @@ app.get('/api/boards/download/:name', verifyAdminCredentials, (req, res) => {
     
     const archivalStream = archiver('zip', { zlib: { level: 6 } });
     
+    // Error handler wrapper added to cleanly catch pipeline breakages before response streams freeze
     archivalStream.on('error', (err) => {
         console.error("Internal compression stream mapping error encountered:", err);
         if (!res.headersSent) {
