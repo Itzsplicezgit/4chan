@@ -6,70 +6,47 @@
     <title>DarkChan</title>
     <style>
         :root {
-            --bg-color: #121212;
-            --container-bg: #1e1e1e;
-            --accent-color: #00ADB5;
-            --text-color: #EEEEEE;
-            --muted-text: #888888;
-            --border-color: #333333;
-            --cooldown-color: #FF5722;
+            --bg-primary: #121214;
+            --bg-secondary: #1a1a1e;
+            --bg-tertiary: #26262b;
+            --accent: #6366f1;
+            --accent-hover: #4f46e5;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --border: #374151;
+            --danger: #ef4444;
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            line-height: 1.6;
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar styling */
+        .sidebar {
+            width: 260px;
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
             padding: 20px;
         }
 
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding-bottom: 20px;
-            border-bottom: 1px solid var(--border-color);
+        .sidebar h2 {
+            font-size: 1.2rem;
             margin-bottom: 20px;
-        }
-
-        h1 {
-            font-size: 1.5rem;
-            color: var(--accent-color);
-        }
-
-        .layout-container {
-            display: grid;
-            grid-template-columns: 240px 1fr;
-            gap: 20px;
-        }
-
-        @media (max-width: 768px) {
-            .layout-container {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* Sidebar Navigation */
-        aside {
-            background-color: var(--container-bg);
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            height: fit-content;
-        }
-
-        aside h2 {
-            font-size: 1rem;
-            margin-bottom: 12px;
-            color: var(--muted-text);
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            color: var(--text-main);
+            letter-spacing: 0.5px;
         }
 
         .board-list {
@@ -77,133 +54,88 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
+            overflow-y: auto;
+            flex-grow: 1;
         }
 
-        .board-item {
-            padding: 10px;
-            background: #252525;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: background 0.2s, border 0.2s;
+        .board-btn {
+            width: 100%;
+            padding: 12px 16px;
+            background: none;
             border: 1px solid transparent;
-            font-weight: 500;
+            border-radius: 8px;
+            color: var(--text-muted);
+            text-align: left;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        .board-item:hover {
-            background: #2a2a2a;
+        .board-btn:hover {
+            background-color: var(--bg-tertiary);
+            color: var(--text-main);
         }
 
-        .board-item.active {
-            background: rgba(0, 173, 181, 0.1);
-            border-color: var(--accent-color);
-            color: var(--accent-color);
+        .board-btn.active {
+            background-color: var(--accent);
+            color: white;
         }
 
         .board-type-tag {
-            font-size: 0.7rem;
-            background: #333;
-            color: #ccc;
+            font-size: 0.75rem;
             padding: 2px 6px;
+            background-color: rgba(255, 255, 255, 0.1);
             border-radius: 4px;
-            float: right;
-            margin-top: 2px;
+            text-transform: uppercase;
         }
 
-        /* Main Workspace */
-        main {
+        /* Main Content View */
+        .main-view {
+            flex-grow: 1;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            height: 100vh;
+            background-color: var(--bg-primary);
         }
 
-        /* Submit Panel */
-        .panel {
-            background-color: var(--container-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 20px;
-        }
-
-        .panel-title {
-            font-size: 1.1rem;
-            margin-bottom: 15px;
-            font-weight: 600;
-        }
-
-        .form-group {
-            margin-bottom: 12px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: 0.9rem;
-            color: #ccc;
-        }
-
-        input[type="text"], input[type="file"], select, textarea {
-            width: 100%;
-            background-color: #252525;
-            border: 1px solid var(--border-color);
-            color: var(--text-color);
-            padding: 10px;
-            border-radius: 6px;
-            outline: none;
-            font-size: 0.95rem;
-        }
-
-        input[type="text"]:focus, select:focus, textarea:focus {
-            border-color: var(--accent-color);
-        }
-
-        .btn {
-            background-color: var(--accent-color);
-            color: #fff;
-            border: none;
-            padding: 10px 18px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: background 0.2s;
-            display: inline-flex;
+        .view-header {
+            padding: 20px 40px;
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
             align-items: center;
-            justify-content: center;
-            gap: 8px;
         }
 
-        .btn:hover {
-            background-color: #00939a;
+        .view-header h1 {
+            font-size: 1.5rem;
         }
 
-        .btn:disabled {
-            background-color: #444 !important;
-            color: #888 !important;
-            cursor: not-allowed;
+        .feed-container {
+            flex-grow: 1;
+            padding: 40px;
+            overflow-y: auto;
         }
 
-        /* Cooldown Banner */
-        .cooldown-text {
-            color: var(--cooldown-color);
-            font-weight: bold;
-            font-size: 0.9rem;
-            margin-top: 5px;
-        }
-
-        /* Gallery Media Grid */
+        /* Media Grid System */
         .media-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 15px;
+            gap: 24px;
         }
 
-        .media-card {
-            background-color: var(--container-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
+        .card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
             overflow: hidden;
             display: flex;
             flex-direction: column;
             position: relative;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
         }
 
         .media-wrapper {
@@ -211,6 +143,7 @@
             width: 100%;
             padding-top: 56.25%; /* 16:9 Aspect Ratio */
             background-color: #000;
+            overflow: hidden;
             cursor: pointer;
         }
 
@@ -223,7 +156,7 @@
             object-fit: cover;
         }
 
-        /* Video Playback Placeholder Styling */
+        /* Lazy video wrapper styling */
         .video-placeholder {
             position: absolute;
             top: 0;
@@ -231,463 +164,473 @@
             width: 100%;
             height: 100%;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
-            background: linear-gradient(135deg, #151515, #252525);
-            color: #fff;
-            font-size: 0.9rem;
-            z-index: 2;
+            background-color: #0c0c0e;
         }
 
-        .video-placeholder .play-icon {
+        .play-button-overlay {
             width: 50px;
             height: 50px;
-            background: rgba(0, 173, 181, 0.85);
+            background-color: rgba(99, 102, 241, 0.9);
             border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
-            margin-bottom: 8px;
-            font-size: 1.5rem;
-            transition: transform 0.2s, background 0.2s;
+            color: white;
+            transition: transform 0.2s ease;
+            z-index: 2;
         }
 
-        .video-placeholder:hover .play-icon {
+        .card:hover .play-button-overlay {
             transform: scale(1.1);
-            background: rgba(0, 173, 181, 1);
         }
 
-        /* Chat Board Styling */
-        .chat-container {
+        .play-button-overlay::after {
+            content: '';
+            box-sizing: border-box;
+            width: 0;
+            height: 14px;
+            border-style: solid;
+            border-width: 7px 0 7px 12px;
+            border-color: transparent transparent transparent white;
+            margin-left: 3px;
+        }
+
+        .card-footer {
+            padding: 12px 16px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border);
+            background-color: rgba(0,0,0,0.1);
+        }
+
+        /* Form upload interface panels */
+        .submission-panel {
+            background-color: var(--bg-secondary);
+            border: 1px dashed var(--border);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .file-input-label {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+
+        .file-input-label:hover {
+            background-color: var(--border);
+        }
+
+        .hidden-file {
+            display: none;
+        }
+
+        .submit-btn {
+            margin-top: 15px;
+            padding: 10px 24px;
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .submit-btn:hover {
+            background-color: var(--accent-hover);
+        }
+
+        /* Chat view workspace styling */
+        .chat-layout {
             display: flex;
             flex-direction: column;
-            height: 550px;
-            background: var(--container-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            overflow: hidden;
+            height: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
         }
 
-        .chat-messages {
-            flex: 1;
-            padding: 15px;
+        .chat-history {
+            flex-grow: 1;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px 12px 0 0;
+            padding: 20px;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            background: #181818;
+            gap: 12px;
         }
 
         .chat-bubble {
-            background: #252525;
-            padding: 10px 14px;
-            border-radius: 8px;
+            background-color: var(--bg-tertiary);
+            padding: 12px 16px;
+            border-radius: 12px;
+            border-bottom-left-radius: 4px;
             max-width: 80%;
             align-self: flex-start;
-            border-bottom-left-radius: 2px;
-            border: 1px solid var(--border-color);
-        }
-
-        .chat-bubble .meta {
-            font-size: 0.75rem;
-            color: var(--accent-color);
-            margin-bottom: 4px;
-            font-weight: 600;
-        }
-
-        .chat-bubble .timestamp {
-            color: var(--muted-text);
-            font-weight: normal;
-            margin-left: 6px;
-        }
-
-        .chat-bubble .text {
+            border: 1px solid var(--border);
             word-break: break-word;
+        }
+
+        .chat-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .chat-text {
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .chat-input-bar {
+            display: flex;
+            gap: 10px;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-top: none;
+            padding: 15px;
+            border-radius: 0 0 12px 12px;
+        }
+
+        .chat-field {
+            flex-grow: 1;
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            color: var(--text-main);
+            outline: none;
             font-size: 0.95rem;
         }
 
-        .chat-input-area {
-            display: flex;
-            gap: 10px;
-            padding: 15px;
-            background: var(--container-bg);
-            border-top: 1px solid var(--border-color);
+        .chat-field:focus {
+            border-color: var(--accent);
         }
 
-        .chat-input-area input[type="text"] {
-            flex: 1;
+        .chat-send-btn {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 0 20px;
+            cursor: pointer;
+            font-weight: 500;
         }
 
-        .chat-input-area .author-input {
-            width: 150px;
+        .chat-send-btn:hover {
+            background-color: var(--accent-hover);
         }
 
-        @media (max-width: 500px) {
-            .chat-input-area {
-                flex-direction: column;
-            }
-            .chat-input-area .author-input {
-                width: 100%;
-            }
+        .status-message {
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            display: none;
         }
 
-        .hidden {
-            display: none !important;
-        }
+        .status-error { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+        .status-success { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
     </style>
 </head>
 <body>
 
-    <header>
-        <h1>Dynamic Media & Chat Hub</h1>
-        <a href="/admin" class="btn" style="background:#333; font-size: 0.85rem;">Admin Interface</a>
-    </header>
+    <div class="sidebar">
+        <h2>DarkChan Boards</h2>
+        <ul class="board-list" id="boardListContainer"></ul>
+    </div>
 
-    <div class="layout-container">
-        <!-- Dynamic Sidebar Navigation -->
-        <aside>
-            <h2>Channels</h2>
-            <ul class="board-list" id="boardList">
-                <li class="board-item active" data-board="all">All Content</li>
-            </ul>
-        </aside>
-
-        <!-- Dynamic Content Engine -->
-        <main>
-            <!-- Media Upload Panel -->
-            <div class="panel" id="uploadPanel">
-                <div class="panel-title">Submit Assets to Queue</div>
-                <form id="uploadForm">
-                    <div class="form-group">
-                        <label for="submitBoardSelect">Target Channel</label>
-                        <select id="submitBoardSelect" required></select>
-                    </div>
-                    <div class="form-group">
-                        <label for="fileInput">Choose Files (Images / Videos)</label>
-                        <input type="file" id="fileInput" name="media" multiple accept="image/*,video/*" required>
-                    </div>
-                    <button type="submit" class="btn" id="uploadBtn">Upload Files</button>
-                    <div class="cooldown-text hidden" id="uploadCooldownMsg">Cooldown active. Please wait.</div>
-                </form>
-            </div>
-
-            <!-- Standard Media Feed Container -->
-            <section class="media-grid" id="mediaGrid"></section>
-
-            <!-- Interactive Chat Arena -->
-            <section class="chat-container hidden" id="chatContainer">
-                <div class="chat-messages" id="chatMessages"></div>
-                <form class="chat-input-area" id="chatForm">
-                    <input type="text" id="chatAuthor" class="author-input" placeholder="Name / Alias" maxlength="25">
-                    <input type="text" id="chatTextInput" placeholder="Type a message..." maxlength="500" required>
-                    <button type="submit" class="btn" id="chatBtn">Send</button>
-                </form>
-                <div class="cooldown-text hidden" style="padding: 0 15px 10px 15px;" id="chatCooldownMsg">Cooldown active. Please wait.</div>
-            </section>
-        </main>
+    <div class="main-view">
+        <div class="view-header">
+            <h1 id="activeBoardTitle">Loading Feeds...</h1>
+        </div>
+        <div class="feed-container" id="feedContentArea"></div>
     </div>
 
     <script>
-        let currentBoard = "all";
-        let localData = { boards: {}, posts: [], chatMessages: {} };
-        let activeCooldowns = { upload: 0, chat: 0 };
-        let cooldownIntervals = {};
+        let currentBoard = 'all';
+        let appData = { boards: {}, boardOrder: [], posts: [] };
 
-        // Local Storage Tracking for Identity
-        if (localStorage.getItem('chatAuthor')) {
-            document.getElementById('chatAuthor').value = localStorage.getItem('chatAuthor');
-        }
-
-        // Clock Cooldown System
-        function startLocalTimer(type, seconds) {
-            if (cooldownIntervals[type]) clearInterval(cooldownIntervals[type]);
-            activeCooldowns[type] = seconds;
-            
-            const btn = type === 'upload' ? document.getElementById('uploadBtn') : document.getElementById('chatBtn');
-            const msg = type === 'upload' ? document.getElementById('uploadCooldownMsg') : document.getElementById('chatCooldownMsg');
-            
-            btn.disabled = true;
-            msg.classList.remove('hidden');
-
-            cooldownIntervals[type] = setInterval(() => {
-                activeCooldowns[type]--;
-                btn.textContent = type === 'upload' ? `Wait (${activeCooldowns[type]}s)` : `Wait (${activeCooldowns[type]}s)`;
-                msg.textContent = `Rate limit active. Wait ${activeCooldowns[type]}s to post again.`;
-                
-                if (activeCooldowns[type] <= 0) {
-                    clearInterval(cooldownIntervals[type]);
-                    btn.disabled = false;
-                    btn.textContent = type === 'upload' ? 'Upload Files' : 'Send';
-                    msg.classList.add('hidden');
-                }
-            }, 1000);
-        }
-
-        // Fetch System Payload
         async function fetchState() {
             try {
                 const response = await fetch('/api/data');
-                localData = await response.json();
+                appData = await response.json();
                 renderSidebar();
-                renderSubmissionDropdown();
-                renderWorkspace();
+                renderMainView();
             } catch (err) {
-                console.error("System sync process failed:", err);
+                console.error("System storage sync failure:", err);
             }
         }
 
-        // Render Navigation Board Listing
         function renderSidebar() {
-            const list = document.getElementById('boardList');
-            list.innerHTML = '';
+            const container = document.getElementById('boardListContainer');
+            container.innerHTML = '';
 
-            // Map and sort boards based on custom dynamic positioning order index
-            const sortedBoards = Object.entries(localData.boards).sort((a, b) => {
-                return (a[1].position || 0) - (b[1].position || 0);
-            });
+            const orderLoop = (appData.boardOrder && appData.boardOrder.length > 0) 
+                ? appData.boardOrder 
+                : Object.keys(appData.boards);
 
-            // Standard Master Feed Node
-            const allItem = document.createElement('li');
-            allItem.className = `board-item ${currentBoard === 'all' ? 'active' : ''}`;
-            allItem.innerHTML = `All Content <span class="board-type-tag">mixed</span>`;
-            allItem.addEventListener('click', () => selectBoard('all'));
-            list.appendChild(allItem);
+            orderLoop.forEach(key => {
+                const board = appData.boards[key];
+                if (!board) return;
 
-            sortedBoards.forEach(([key, config]) => {
-                const item = document.createElement('li');
-                item.className = `board-item ${currentBoard === key ? 'active' : ''}`;
-                item.innerHTML = `${config.title} <span class="board-type-tag">${config.type}</span>`;
-                item.addEventListener('click', () => selectBoard(key));
-                list.appendChild(item);
-            });
-        }
-
-        // Filter and Build Dropdowns for Multi-File Submitter
-        function renderSubmissionDropdown() {
-            const select = document.getElementById('submitBoardSelect');
-            select.innerHTML = '';
-
-            Object.entries(localData.boards)
-                .filter(([_, config]) => config.type !== 'chat') // Cannot upload media to structural chat text boards
-                .forEach(([key, config]) => {
-                    const opt = document.createElement('option');
-                    opt.value = key;
-                    opt.textContent = config.title;
-                    select.appendChild(opt);
-                });
-
-            // Auto-hide upload manager panel entirely if no media boards are deployed
-            const hasMediaBoards = select.children.length > 0;
-            document.getElementById('uploadPanel').classList.toggle('hidden', !hasMediaBoards || currentBoard === 'chat');
-        }
-
-        // Navigation Controller
-        function selectBoard(key) {
-            currentBoard = key;
-            document.querySelectorAll('.board-item').forEach(el => el.classList.remove('active'));
-            fetchState();
-        }
-
-        // Work Space Router
-        function renderWorkspace() {
-            const isChatType = localData.boards[currentBoard]?.type === 'chat';
-
-            if (isChatType) {
-                document.getElementById('mediaGrid').classList.add('hidden');
-                document.getElementById('uploadPanel').classList.add('hidden');
-                document.getElementById('chatContainer').classList.remove('hidden');
-                renderChatRoom();
-            } else {
-                document.getElementById('mediaGrid').classList.remove('hidden');
-                document.getElementById('chatContainer').classList.add('hidden');
+                const li = document.createElement('li');
+                const btn = document.createElement('button');
+                btn.className = `board-btn ${currentBoard === key ? 'active' : ''}`;
                 
-                // Keep upload block contextually active if non-chat elements are available
-                const dropdown = document.getElementById('submitBoardSelect');
-                if (dropdown.children.length > 0) {
-                    document.getElementById('uploadPanel').classList.remove('hidden');
+                const titleSpan = document.createElement('span');
+                titleSpan.textContent = board.title;
+                btn.appendChild(titleSpan);
+
+                if(board.type) {
+                    const typeTag = document.createElement('span');
+                    typeTag.className = 'board-type-tag';
+                    typeTag.textContent = board.type;
+                    btn.appendChild(typeTag);
                 }
-                renderMediaGrid();
-            }
+
+                btn.onclick = () => {
+                    currentBoard = key;
+                    renderSidebar();
+                    renderMainView();
+                };
+                li.appendChild(btn);
+                container.appendChild(li);
+            });
         }
 
-        // Lag-Free Media Grid Processing Engine
-        function renderMediaGrid() {
-            const grid = document.getElementById('mediaGrid');
-            grid.innerHTML = '';
+        function renderMainView() {
+            const headerTitle = document.getElementById('activeBoardTitle');
+            const contentArea = document.getElementById('feedContentArea');
+            contentArea.innerHTML = '';
 
-            // Filter out items matching specific board views
-            const filtered = localData.posts.filter(post => {
-                if (currentBoard === 'all') return true;
-                return post.board === currentBoard;
-            });
-
-            if (filtered.length === 0) {
-                grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--muted-text); padding: 40px;">No media elements posted to this feed channel yet.</div>`;
+            const boardConfig = appData.boards[currentBoard];
+            if (!boardConfig) {
+                headerTitle.textContent = "Unknown Board Element";
                 return;
             }
 
-            filtered.forEach(post => {
-                const card = document.createElement('article');
-                card.className = 'media-card';
+            headerTitle.textContent = boardConfig.title;
+
+            if (boardConfig.type === 'chat') {
+                renderChatWorkspace(contentArea);
+            } else {
+                renderMediaWorkspace(contentArea);
+            }
+        }
+
+        function renderChatWorkspace(targetContainer) {
+            const layout = document.createElement('div');
+            layout.className = 'chat-layout';
+
+            const history = document.createElement('div');
+            history.className = 'chat-history';
+
+            const filteredChats = appData.posts.filter(p => p.board === currentBoard && p.type === 'chat');
+
+            filteredChats.forEach(chat => {
+                const bubble = document.createElement('div');
+                bubble.className = 'chat-bubble';
+
+                const meta = document.createElement('span');
+                meta.className = 'chat-meta';
+                meta.textContent = new Date(chat.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+                const text = document.createElement('div');
+                text.className = 'chat-text';
+                text.textContent = chat.message;
+
+                bubble.appendChild(meta);
+                bubble.appendChild(text);
+                history.appendChild(bubble);
+            });
+
+            const inputBar = document.createElement('div');
+            inputBar.className = 'chat-input-bar';
+
+            const txtField = document.createElement('input');
+            txtField.type = 'text';
+            txtField.className = 'chat-field';
+            txtField.placeholder = 'Type a message... (1 min cooldown applies)';
+            txtField.maxLength = 500;
+
+            const sendBtn = document.createElement('button');
+            sendBtn.className = 'chat-send-btn';
+            sendBtn.textContent = 'Send';
+
+            const status = document.createElement('div');
+            status.className = 'status-message';
+
+            async function dispatchMessage() {
+                const msg = txtField.value.trim();
+                if(!msg) return;
+
+                try {
+                    const res = await fetch('/api/posts/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ board: currentBoard, message: msg })
+                    });
+                    const data = await res.json();
+                    if(data.success) {
+                        txtField.value = '';
+                        status.style.display = 'none';
+                        await fetchState();
+                    } else {
+                        status.textContent = data.error || 'Failed to deliver message.';
+                        status.className = 'status-message status-error';
+                        status.style.display = 'block';
+                    }
+                } catch(e) {
+                    status.textContent = 'Network communication failure error.';
+                    status.className = 'status-message status-error';
+                    status.style.display = 'block';
+                }
+            }
+
+            txtField.onkeydown = (e) => { if(e.key === 'Enter') dispatchMessage(); };
+            sendBtn.onclick = dispatchMessage;
+
+            inputBar.appendChild(txtField);
+            inputBar.appendChild(sendBtn);
+
+            layout.appendChild(history);
+            layout.appendChild(inputBar);
+            layout.appendChild(status);
+            targetContainer.appendChild(layout);
+
+            history.scrollTop = history.scrollHeight;
+        }
+
+        function renderMediaWorkspace(targetContainer) {
+            // Render regular file submission drop block
+            const panel = document.createElement('div');
+            panel.className = 'submission-panel';
+            panel.innerHTML = `
+                <h3>Submit Content to Feed Matrix</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top:5px;">Images or Videos. Cooldown enforced on post execution.</p>
+                <label class="file-input-label" for="userFileInput">Choose File Resource</label>
+                <input type="file" id="userFileInput" class="hidden-file" accept="image/*,video/*" />
+                <div id="fileSelectionName" style="margin-top: 10px; font-size:0.85rem; color:var(--accent);"></div>
+                <button class="submit-btn" id="fileSubmitBtn" style="display:none;">Upload to Moderation Queue</button>
+                <div id="uploadStatusBox" class="status-message"></div>
+            `;
+            targetContainer.appendChild(panel);
+
+            const fileInput = panel.querySelector('#userFileInput');
+            const selectionName = panel.querySelector('#fileSelectionName');
+            const submitBtn = panel.querySelector('#fileSubmitBtn');
+            const statusBox = panel.querySelector('#uploadStatusBox');
+
+            fileInput.onchange = () => {
+                if(fileInput.files.length > 0) {
+                    selectionName.textContent = `Target item: ${fileInput.files[0].name}`;
+                    submitBtn.style.display = 'inline-block';
+                }
+            };
+
+            submitBtn.onclick = async () => {
+                const payload = new FormData();
+                payload.append('board', currentBoard);
+                payload.append('media', fileInput.files[0]);
+
+                try {
+                    statusBox.style.display = 'none';
+                    const res = await fetch('/api/posts/submit', { method: 'POST', body: payload });
+                    const data = await res.json();
+                    if(data.success) {
+                        statusBox.textContent = data.message;
+                        statusBox.className = 'status-message status-success';
+                        statusBox.style.display = 'block';
+                        fileInput.value = '';
+                        selectionName.textContent = '';
+                        submitBtn.style.display = 'none';
+                    } else {
+                        statusBox.textContent = data.error || 'Processing registration rejected.';
+                        statusBox.className = 'status-message status-error';
+                        statusBox.style.display = 'block';
+                    }
+                } catch(err) {
+                    statusBox.textContent = 'Server communication fault.';
+                    statusBox.className = 'status-message status-error';
+                    statusBox.style.display = 'block';
+                }
+            };
+
+            // Render Media Feed Grid Component
+            const grid = document.createElement('div');
+            grid.className = 'media-grid';
+
+            const filteredPosts = appData.posts.filter(p => (currentBoard === 'all' && p.type !== 'chat') || p.board === currentBoard);
+
+            filteredPosts.forEach(post => {
+                const card = document.createElement('div');
+                card.className = 'card';
 
                 const wrapper = document.createElement('div');
                 wrapper.className = 'media-wrapper';
 
                 if (post.type === 'video') {
-                    // Create play placeholder instead of mounting standard autoplay/preload video tracks
+                    // Optimized video container wrapper logic: loads zero video stream resources until clicked
                     const placeholder = document.createElement('div');
                     placeholder.className = 'video-placeholder';
-                    placeholder.innerHTML = `
-                        <div class="play-icon">▶</div>
-                        <span>Click to Stream Video</span>
-                    `;
-
+                    
+                    const playOverlay = document.createElement('div');
+                    playOverlay.className = 'play-button-overlay';
+                    
+                    placeholder.appendChild(playOverlay);
                     wrapper.appendChild(placeholder);
 
-                    // Physical activation event on interaction
-                    wrapper.addEventListener('click', () => {
-                        placeholder.remove(); // Clean static assets
-                        const activeVideo = document.createElement('video');
-                        activeVideo.src = post.src;
-                        activeVideo.controls = true;
-                        activeVideo.autoplay = true;
-                        activeVideo.style.zIndex = "1";
-                        wrapper.appendChild(activeVideo);
-                    }, { once: true });
-
+                    // Initialize actual video configuration stream layout only upon interaction click event
+                    wrapper.onclick = () => {
+                        wrapper.onclick = null; // Remove handler to prevent re-execution loop
+                        wrapper.innerHTML = '';
+                        const video = document.createElement('video');
+                        video.src = post.src;
+                        video.controls = true;
+                        video.autoplay = true;
+                        video.style.position = 'absolute';
+                        video.style.width = '100%';
+                        video.style.height = '100%';
+                        wrapper.appendChild(video);
+                    };
                 } else {
                     const img = document.createElement('img');
                     img.src = post.src;
-                    img.loading = 'lazy'; // System resource optimization
-                    img.alt = "Uploaded asset";
+                    img.loading = 'lazy';
                     wrapper.appendChild(img);
                 }
 
+                const footer = document.createElement('div');
+                footer.className = 'card-footer';
+                footer.textContent = `Node Asset Ref: ${post.id} • ${new Date(post.timestamp).toLocaleDateString()}`;
+
                 card.appendChild(wrapper);
+                card.appendChild(footer);
                 grid.appendChild(card);
             });
+
+            targetContainer.appendChild(grid);
         }
 
-        // Live Chat Feed Constructor
-        function renderChatRoom() {
-            const container = document.getElementById('chatMessages');
-            const messages = localData.chatMessages[currentBoard] || [];
-            
-            // Track scrolling location before update to keep user pinned down
-            const isNearBottom = container.scrollHeight - container.clientHeight - container.scrollTop < 60;
-
-            container.innerHTML = '';
-
-            if (messages.length === 0) {
-                container.innerHTML = `<div style="text-align: center; color: var(--muted-text); margin-top: 30px;">Welcome! Start the discussion by writing a message above.</div>`;
-                return;
-            }
-
-            messages.forEach(msg => {
-                const bubble = document.createElement('div');
-                bubble.className = 'chat-bubble';
-
-                const timeStr = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-                bubble.innerHTML = `
-                    <div class="meta">${escapeHTML(msg.author)} <span class="timestamp">${timeStr}</span></div>
-                    <div class="text">${escapeHTML(msg.text)}</div>
-                `;
-                container.appendChild(bubble);
-            });
-
-            if (isNearBottom) {
-                container.scrollTop = container.scrollHeight;
-            }
-        }
-
-        // Post Media Queue Submit Handler
-        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (activeCooldowns.upload > 0) return;
-
-            const form = document.getElementById('uploadForm');
-            const formData = new FormData();
-            
-            formData.append('board', document.getElementById('submitBoardSelect').value);
-            
-            const files = document.getElementById('fileInput').files;
-            for (let i = 0; i < files.length; i++) {
-                formData.append('media', files[i]);
-            }
-
-            try {
-                const response = await fetch('/api/posts/submit', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const result = await response.json();
-                if (response.ok) {
-                    alert("Media successfully buffered into moderation queue!");
-                    form.reset();
-                    startLocalTimer('upload', 60); // 1-minute safety lock
-                    fetchState();
-                } else {
-                    alert(result.error || "A secure connection error occured.");
-                }
-            } catch (err) {
-                alert("Fail connection handshake during publication run.");
-            }
-        });
-
-        // Chat Form Message Dispatcher
-        document.getElementById('chatForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (activeCooldowns.chat > 0) return;
-
-            const authorInput = document.getElementById('chatAuthor');
-            const textInput = document.getElementById('chatTextInput');
-
-            const payload = {
-                board: currentBoard,
-                author: authorInput.value || "Anonymous",
-                text: textInput.value
-            };
-
-            // Save alias identity to disk locally
-            localStorage.setItem('chatAuthor', payload.author);
-
-            try {
-                const response = await fetch('/api/chat/send', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                const result = await response.json();
-                if (response.ok) {
-                    textInput.value = '';
-                    startLocalTimer('chat', 60); // 1-minute chat cooldown lock
-                    fetchState();
-                } else {
-                    alert(result.error || "System rejected connection string.");
-                }
-            } catch (err) {
-                alert("Fail processing output string stream.");
-            }
-        });
-
-        // XSS Defense String Encoder
-        function escapeHTML(str) {
-            return str.replace(/[&<>'"]/g, 
-                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-            );
-        }
-
-        // Initializer Routine
-        fetchState();
-        
-        // Dynamic Long-Polling Interval for Real-time Chat Syncing (every 5 seconds)
-        setInterval(() => {
+        window.onload = () => {
             fetchState();
-        }, 5000);
+            // Optional continuous feed checking interval execution
+            setInterval(fetchState, 10000);
+        };
     </script>
 </body>
 </html>
