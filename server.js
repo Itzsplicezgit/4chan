@@ -95,6 +95,7 @@ app.get('/admin', (req, res) => {
 app.use(express.static(__dirname));
 
 const rateLimitCooldownRegistry = new Map();
+const adminFailureRegistry = new Map(); // Tracks password failure count and lockout time
 
 function enforceOperationalCooldown(req, res, next) {
     const userIp = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
@@ -123,10 +124,48 @@ function enforceOperationalCooldown(req, res, next) {
 }
 
 function verifyAdminCredentials(req, res, next) {
+    const userIp = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const now = Date.now();
+
+    // Check if the user is currently under password lockout
+    if (adminFailureRegistry.has(userIp)) {
+        const failData = adminFailureRegistry.get(userIp);
+        if (failData.attempts >= 3) {
+            const timeElapsed = now - failData.lockoutTime;
+            if (timeElapsed < 60000) {
+                const remainingSeconds = Math.ceil((60000 - timeElapsed) / 1000);
+                return res.status(429).json({ 
+                    success: false, 
+                    error: `Too many bad login attempts. Admin portal locked for ${remainingSeconds} second(s).` 
+                });
+            } else {
+                // Cooldown has expired, clear history to let them try again
+                adminFailureRegistry.delete(userIp);
+            }
+        }
+    }
+
     const token = req.headers['x-admin-password'];
     if (!token || token !== MASTER_PASSWORD) {
+        // Track the failure
+        let failData = adminFailureRegistry.get(userIp) || { attempts: 0, lockoutTime: 0 };
+        failData.attempts += 1;
+        
+        if (failData.attempts >= 3) {
+            failData.lockoutTime = now;
+            adminFailureRegistry.set(userIp, failData);
+            return res.status(429).json({ 
+                success: false, 
+                error: 'Too many bad login attempts. Admin operations locked down for 1 minute.' 
+            });
+        }
+        
+        adminFailureRegistry.set(userIp, failData);
         return res.status(401).json({ success: false, error: 'Invalid master system security passphrase.' });
     }
+
+    // Success - clear any accumulated bad attempts for this IP
+    adminFailureRegistry.delete(userIp);
     next();
 }
 
@@ -391,9 +430,9 @@ app.post('/api/posts/chat', enforceOperationalCooldown, (req, res) => {
         return res.status(400).json({ success: false, error: 'Cannot broadcast an empty message block.' });
     }
 
-    const absoluteWordCount = message.trim().split(/\s+/).filter(Boolean).length;
-    if (absoluteWordCount > 200) {
-        return res.status(400).json({ success: false, error: `Content limit exceeded. Your submission contains ${absoluteWordCount} words (Maximum limit configuration size: 200 words).` });
+    const absoluteCharacterCount = String(message).length;
+    if (absoluteCharacterCount > 200) {
+        return res.status(400).json({ success: false, error: `Content limit exceeded. Your submission contains ${absoluteCharacterCount} characters (Maximum limit configuration size: 200 characters).` });
     }
 
     const isSessionAdmin = (req.headers['x-admin-password'] === MASTER_PASSWORD);
