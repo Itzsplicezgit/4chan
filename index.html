@@ -413,23 +413,28 @@
             if (boardMeta.type === 'chat') {
                 container.innerHTML = `
                     <label for="chatMessageTextarea">Message Stream Input</label>
-                    <textarea id="chatMessageTextarea" placeholder="Type an anonymous broadcast text..." maxlength="200" required></textarea>
-                    <div class="counter-label" id="chatWordCounter">0 / 200 words</div>
+                    <textarea id="chatMessageTextarea" maxlength="200" placeholder="Type an anonymous broadcast text..." required></textarea>
+                    <div class="counter-label" id="chatWordCounter">0 / 200 characters</div>
                 `;
                 
                 const textarea = document.getElementById('chatMessageTextarea');
                 textarea.addEventListener('input', () => {
-                    const words = textarea.value.trim().split(/\s+/).filter(Boolean).length;
+                    const chars = textarea.value.length;
                     const counter = document.getElementById('chatWordCounter');
                     const submitBtn = document.getElementById('submitFormButton');
-                    counter.textContent = `${words} / 200 words`;
+                    counter.textContent = `${chars} / 200 characters`;
                     
-                    if (words > 200) {
+                    if (chars > 200) {
                         counter.className = "counter-label danger";
                         submitBtn.disabled = true;
                     } else {
                         counter.className = "counter-label";
-                        submitBtn.disabled = false;
+                        // Only re-enable if we aren't currently waiting on a global cooldown
+                        const lastUploadTime = localStorage.getItem('darkchan_last_upload');
+                        const timePassed = lastUploadTime ? Date.now() - parseInt(lastUploadTime, 10) : COOLDOWN_DURATION;
+                        if (timePassed >= COOLDOWN_DURATION) {
+                            submitBtn.disabled = false;
+                        }
                     }
                 });
             } else {
@@ -442,7 +447,11 @@
                     <div class="file-chosen-text" id="fileChosenFeedback">No file selected</div>
                 `;
                 bindFileInputListener();
-                document.getElementById('submitFormButton').disabled = false;
+                const lastUploadTime = localStorage.getItem('darkchan_last_upload');
+                const timePassed = lastUploadTime ? Date.now() - parseInt(lastUploadTime, 10) : COOLDOWN_DURATION;
+                if (timePassed >= COOLDOWN_DURATION) {
+                    document.getElementById('submitFormButton').disabled = false;
+                }
             }
         }
 
@@ -740,20 +749,20 @@
             const progBox = document.getElementById('submissionProgressBox');
             const progFill = document.getElementById('submissionProgressFill');
             const progText = document.getElementById('submissionProgressText');
+            const submitBtn = document.getElementById('submitFormButton');
 
             if (!board) return;
 
             const boardMeta = localStateCache.boards[board];
             const formData = new FormData();
-
             let uploadEndpoint = '/api/posts/upload';
 
             if (boardMeta && boardMeta.type === 'chat') {
                 const textInput = document.getElementById('chatMessageTextarea');
                 if (!textInput || !textInput.value.trim()) return;
                 
-                const wordCount = textInput.value.trim().split(/\s+/).filter(Boolean).length;
-                if(wordCount > 200) {
+                const charCount = textInput.value.length;
+                if(charCount > 200) {
                     alert('Submission rejected locally: content block size limits exceeded.');
                     return;
                 }
@@ -773,10 +782,54 @@
             progBox.style.display = 'block';
             progFill.style.width = '0%';
             progText.textContent = '0%';
+            submitBtn.disabled = true;
 
             const xhr = new XMLHttpRequest();
+            
+            xhr.upload.addEventListener('progress', function(event) {
+                if (event.lengthComputable) {
+                    const percentComplete = Math.round((event.loaded / event.total) * 100);
+                    progFill.style.width = percentComplete + '%';
+                    progText.textContent = percentComplete + '%';
+                }
+            });
+
+            xhr.addEventListener('load', function() {
+                progBox.style.display = 'none';
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    statusMsg.style.color = '#ffffff';
+                    statusMsg.textContent = 'Submitted successfully to moderation queue!';
+                    
+                    // Set client cooldown constraint right away upon success
+                    localStorage.setItem('darkchan_last_upload', Date.now().toString());
+                    checkClientCooldown();
+                    
+                    // Reset inputs safely
+                    document.getElementById('publicSubmissionForm').reset();
+                    adjustFormFieldsForBoardType(board);
+                    
+                    // Re-sync platform logs
+                    loadPlatformState();
+                } else {
+                    statusMsg.style.color = '#cf6679';
+                    statusMsg.textContent = 'Submission failed or rejected by server constraints.';
+                    submitBtn.disabled = false;
+                }
+            });
+
+            xhr.addEventListener('error', function() {
+                progBox.style.display = 'none';
+                statusMsg.style.color = '#cf6679';
+                statusMsg.textContent = 'A critical network error occurred during broadcast.';
+                submitBtn.disabled = false;
+            });
+
             xhr.open('POST', uploadEndpoint, true);
+            xhr.send(formData);
         });
+
+        // Initialize platform cache cycle logs
+        window.addEventListener('DOMContentLoaded', loadPlatformState);
     </script>
 </body>
 </html>
