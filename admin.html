@@ -778,49 +778,81 @@
 
             const formData = new FormData();
             formData.append('board', board);
-            if (customId) formData.append('customId', customId);
-            
+            if (customId) {
+                formData.append('customId', customId);
+            }
+
             for (let i = 0; i < filesInput.files.length; i++) {
                 formData.append('files', filesInput.files[i]);
             }
 
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', '/api/upload/direct', true);
-            xhr.setRequestHeader('x-admin-password', getAuthPassword());
+            try {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '/api/posts/upload-direct');
+                xhr.setRequestHeader('x-admin-password', getAuthPassword());
 
-            xhr.upload.addEventListener('progress', (event) => {
-                if (event.lengthComputable) {
-                    const percentComplete = Math.round((event.loaded / event.total) * 100);
-                    progressFill.style.width = percentComplete + '%';
-                    progressText.textContent = percentComplete + '%';
-                }
-            });
+                xhr.upload.addEventListener('progress', (event) => {
+                    if (event.lengthComputable) {
+                        const percentComplete = Math.round((event.loaded / event.total) * 100);
+                        progressFill.style.width = percentComplete + '%';
+                        progressText.textContent = percentComplete + '%';
+                    }
+                });
 
-            xhr.addEventListener('load', () => {
-                let responseData;
-                try {
-                    responseData = JSON.parse(xhr.responseText);
-                } catch (e) {
-                    responseData = { error: 'Invalid server performance payload data structure.' };
-                }
+                xhr.addEventListener('load', () => {
+                    let responseData = {};
+                    try {
+                        responseData = JSON.parse(xhr.responseText);
+                    } catch (err) {}
 
-                if (xhr.status >= 200 && xhr.status < 300 && responseData.success) {
-                    statusMsg.style.color = '#b5bd68';
-                    statusMsg.textContent = 'Media published down cleanly straight to dashboard timelines!';
-                    document.getElementById('adminDirectUploadForm').reset();
+                    if (xhr.status >= 200 && xhr.status < 300 && responseData.success) {
+                        statusMsg.style.color = '#b5bd68';
+                        statusMsg.textContent = `Successfully uploaded ${filesInput.files.length} asset entries instantly!`;
+                        document.getElementById('adminDirectUploadForm').reset();
+                        synchroniseState();
+                    } else {
+                        statusMsg.style.color = '#cf6679';
+                        statusMsg.textContent = responseData.error || 'Server error processing file stream batch upload.';
+                    }
+                });
+
+                xhr.addEventListener('error', () => {
+                    statusMsg.style.color = '#cf6679';
+                    statusMsg.textContent = 'Network execution failure encountered during media routing pipelines.';
+                });
+
+                xhr.send(formData);
+            } catch (err) {
+                statusMsg.style.color = '#cf6679';
+                statusMsg.textContent = 'Unexpected exception running upload wrapper handles.';
+            }
+        });
+
+        document.getElementById('deletePostForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const postId = document.getElementById('deletePostId').value.trim();
+            const deleteStatusMsg = document.getElementById('deletePostStatusMsg');
+            deleteStatusMsg.textContent = '';
+
+            try {
+                const res = await fetch(`/api/posts/delete/${postId}`, {
+                    method: 'DELETE',
+                    headers: { 'x-admin-password': getAuthPassword() }
+                });
+                const responseData = await res.json();
+                if (res.ok && responseData.success) {
+                    deleteStatusMsg.style.color = '#b5bd68';
+                    deleteStatusMsg.textContent = `Post ID ${postId} successfully purged from server storage arrays.`;
+                    document.getElementById('deletePostForm').reset();
                     synchroniseState();
                 } else {
-                    statusMsg.style.color = '#cf6679';
-                    statusMsg.textContent = responseData.error || 'Direct processing upload execution batch fault.';
+                    deleteStatusMsg.style.color = '#cf6679';
+                    deleteStatusMsg.textContent = responseData.error || 'Server rejection processing asset removal sequence.';
                 }
-            });
-
-            xhr.addEventListener('error', () => {
-                statusMsg.style.color = '#cf6679';
-                statusMsg.textContent = 'Pipeline transport drop out tracking active routes.';
-            });
-
-            xhr.send(formData);
+            } catch (err) {
+                deleteStatusMsg.style.color = '#cf6679';
+                deleteStatusMsg.textContent = 'Connectivity exception running target post wiping processes.';
+            }
         });
     </script>
 </body>
