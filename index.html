@@ -765,7 +765,7 @@
                 const fileInputEl = document.getElementById('publicMediaFile');
                 const fileInput = fileInputEl ? fileInputEl.files[0] : null;
                 if (!fileInput) return;
-                formData.append('node', board);
+                formData.append('board', board);
                 formData.append('media', fileInput);
             }
 
