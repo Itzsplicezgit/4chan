@@ -366,6 +366,8 @@
             return document.getElementById('adminPassword').value;
         }
 
+        document.getElementById('verifyCredentialsBtn').addEventListener('click', runInitialValidation);
+
         async function runInitialValidation() {
             const currentPass = getAuthPassword();
             if (!currentPass) {
@@ -427,7 +429,6 @@
             uploadSelector.innerHTML = '<option value="">Select a board...</option>';
             downloadSelector.innerHTML = '<option value="">Select a board...</option>';
 
-            // Sort keys cleanly by sequential assignment order configuration node
             const boardsList = Object.keys(serverCache.boards).sort((a, b) => {
                 return (serverCache.boards[a].position || 0) - (serverCache.boards[b].position || 0);
             });
@@ -485,10 +486,8 @@
                 const mediaBox = document.createElement('div');
                 mediaBox.className = 'queue-media';
 
-                // FEATURE IMPLEMENTATION: Lazy rendering system for video objects to isolate client lag spikes
                 if (item.type === 'video') {
                     const thumbImg = document.createElement('img');
-                    // Point to thumbnail pipeline string; defaults fallback cleanly if backend synchronization layers alter paths
                     thumbImg.src = item.thumbnail || '/uploads/thumbnails/video-placeholder.jpg';
                     thumbImg.style.cursor = 'pointer';
                     thumbImg.style.display = 'block';
@@ -511,7 +510,6 @@
                     mediaBox.appendChild(thumbImg);
                     mediaBox.appendChild(actionOverlay);
 
-                    // Dynamic runtime playback generation upon interaction click
                     thumbImg.addEventListener('click', () => {
                         mediaBox.innerHTML = '';
                         const liveVideoNode = document.createElement('video');
@@ -523,7 +521,6 @@
                         mediaBox.appendChild(liveVideoNode);
                     });
                 } else if (item.type === 'text') {
-                    // Visual formatting rendering wrapper inside the queue context loop blocks
                     const textSnippet = document.createElement('div');
                     textSnippet.style.padding = '12px';
                     textSnippet.style.fontSize = '12px';
@@ -596,7 +593,6 @@
             }
         }
 
-        // FEATURE IMPLEMENTATION: Custom ordering shift controls mapping array mutations cleanly
         function renderReorderInterface() {
             const container = document.getElementById('reorderBoardsContainer');
             container.innerHTML = '';
@@ -647,12 +643,10 @@
             const desiredTargetIndex = cursorIndex + directionOffset;
             if (desiredTargetIndex < 0 || desiredTargetIndex >= listArray.length) return;
 
-            // Swap values safely inside tracking array indexes
             const elementHolder = listArray[cursorIndex];
             listArray[cursorIndex] = listArray[desiredTargetIndex];
             listArray[desiredTargetIndex] = elementHolder;
 
-            // Structural local property index normalization update mapping
             listArray.forEach((boardKey, newPositionIndex) => {
                 serverCache.boards[boardKey].position = newPositionIndex;
             });
@@ -696,7 +690,6 @@
             }
         });
 
-        // FEATURE IMPLEMENTATION: Downloader pipeline calling file system generation endpoints
         document.getElementById('downloadBoardForm').addEventListener('submit', (e) => {
             e.preventDefault();
             const targetBoardHandle = document.getElementById('downloadBoardSelector').value;
@@ -705,7 +698,6 @@
             const accessPass = getAuthPassword();
             const trackingRouteUrl = `/api/boards/download/${targetBoardHandle}`;
 
-            // Handle stream processing securely passing master password verification headers
             fetch(trackingRouteUrl, {
                 headers: { 'x-admin-password': accessPass }
             })
@@ -761,87 +753,91 @@
         document.getElementById('deleteBoardForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const name = document.getElementById('deleteBoardSelector').value;
-            if (!name) return alert('Select target node category.');
-
-            if (!confirm(`Are you completely sure you want to permanently delete board category "${name}"? This deletes ALL files associated with it.`)) return;
-
-            try {
-                const res = await fetch('/api/boards/delete', {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'x-admin-password': getAuthPassword()
-                    },
-                    body: JSON.stringify({ name })
-                });
-                const data = await res.json();
-                if (res.ok && data.success) {
-                    alert('Board category tracking dropped.');
-                    synchroniseState();
-                } else {
-                    alert(data.error || 'Decommission steps failed.');
-                }
-            } catch (err) {
-                alert('System transaction interrupted.');
-            }
-        });
-
-        document.getElementById('adminDirectUploadForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-
-            const board = document.getElementById('uploadBoardSelector').value;
-            const customId = document.getElementById('customPostId').value;
-            const files = document.getElementById('directMediaFiles').files;
-            const statusMsg = document.getElementById('adminUploadStatusMsg');
-            const progBox = document.getElementById('adminUploadProgressBox');
-            const progFill = document.getElementById('adminUploadProgressFill');
-            const progText = document.getElementById('adminUploadProgressText');
-
-            if (!board || files.length === 0) {
-                statusMsg.style.color = '#cf6679';
-                statusMsg.textContent = 'Missing core upload assets.';
+            if (!name) return alert('Please select a board to delete.');
+            
+            if (!confirm(`Are you absolutely sure you want to delete /${name}/? This removes all post entries and asset records completely.`)) {
                 return;
             }
 
+            try {
+                const res = await fetch(`/api/boards/delete/${name}`, {
+                    method: 'DELETE',
+                    headers: { 
+                        'x-admin-password': getAuthPassword()
+                    }
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    alert('Category board decommissioned.');
+                    synchroniseState();
+                } else {
+                    alert(data.error || 'Decommission error.');
+                }
+            } catch (err) {
+                alert('Connectivity loss executing tracking routines.');
+            }
+        });
+
+        document.getElementById('adminDirectUploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const board = document.getElementById('uploadBoardSelector').value;
+            const customId = document.getElementById('customPostId').value.trim();
+            const filesInput = document.getElementById('directMediaFiles');
+            
+            if (!board) return alert('Select destination board node.');
+            if (filesInput.files.length === 0) return alert('Select files to upload.');
+
+            const progressBox = document.getElementById('adminUploadProgressBox');
+            const progressFill = document.getElementById('adminUploadProgressFill');
+            const progressText = document.getElementById('adminUploadProgressText');
+            const statusMsg = document.getElementById('adminUploadStatusMsg');
+
+            progressBox.style.display = 'block';
+            progressFill.style.width = '0%';
+            progressText.textContent = '0%';
+            statusMsg.textContent = '';
+
             const formData = new FormData();
             formData.append('board', board);
-            formData.append('customId', customId);
-            for (let i = 0; i < files.length; i++) {
-                formData.append('media', files[i]);
+            if (customId) formData.append('customId', customId);
+            for (let i = 0; i < filesInput.files.length; i++) {
+                formData.append('files', filesInput.files[i]);
             }
 
-            statusMsg.textContent = '';
-            progBox.style.display = 'block';
-            progFill.style.width = '0%';
-            progText.textContent = '0%';
-
             const xhr = new XMLHttpRequest();
-            xhr.open('POST', '/api/posts/upload', true);
-            
+            xhr.open('POST', '/api/posts/direct-upload', true);
             xhr.setRequestHeader('x-admin-password', getAuthPassword());
 
-            xhr.upload.addEventListener('progress', (event) => {
-                if (event.lengthComputable) {
-                    const pct = Math.round((event.loaded / event.total) * 100);
-                    progFill.style.width = pct + '%';
-                    progText.textContent = pct + '%';
+            xhr.upload.onprogress = function (e) {
+                if (e.lengthComputable) {
+                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+                    progressFill.style.width = percentComplete + '%';
+                    progressText.textContent = percentComplete + '%';
                 }
-            });
+            };
 
             xhr.onload = function () {
-                if (xhr.status === 200) {
-                    const response = JSON.parse(xhr.responseText);
+                let responseData;
+                try {
+                    responseData = JSON.parse(xhr.responseText);
+                } catch (err) {
+                    responseData = { error: 'Server returned unrecognizable data streams.' };
+                }
+
+                if (xhr.status >= 200 && xhr.status < 300 && responseData.success) {
                     statusMsg.style.color = '#b5bd68';
-                    let text = response.message || 'Direct bypass upload succeeded!';
-                    if (response.warnings) text += '\nWarnings:\n' + response.warnings.join('\n');
-                    statusMsg.textContent = text;
+                    statusMsg.textContent = 'Assets processed and published directly into production!';
                     document.getElementById('adminDirectUploadForm').reset();
                     synchroniseState();
                 } else {
-                    const response = JSON.parse(xhr.responseText);
                     statusMsg.style.color = '#cf6679';
-                    statusMsg.textContent = response.error || 'Server error encountered processing bypassing routine.';
+                    statusMsg.textContent = responseData.error || 'Upload runtime submission error.';
                 }
+            };
+
+            xhr.onerror = function () {
+                statusMsg.style.color = '#cf6679';
+                statusMsg.textContent = 'Fatal transport network socket failure occurred.';
             };
 
             xhr.send(formData);
@@ -849,36 +845,32 @@
 
         document.getElementById('deletePostForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const id = document.getElementById('deletePostId').value.trim();
-            const msgNode = document.getElementById('deletePostStatusMsg');
-            msgNode.textContent = '';
+            const postId = document.getElementById('deletePostId').value.trim();
+            const statusNode = document.getElementById('deletePostStatusMsg');
+            statusNode.textContent = '';
 
             try {
-                const res = await fetch('/api/posts/delete', {
-                    method: 'POST',
+                const res = await fetch(`/api/posts/delete/${postId}`, {
+                    method: 'DELETE',
                     headers: { 
-                        'Content-Type': 'application/json',
                         'x-admin-password': getAuthPassword()
-                    },
-                    body: JSON.stringify({ id })
+                    }
                 });
                 const data = await res.json();
                 if (res.ok && data.success) {
-                    msgNode.style.color = '#b5bd68';
-                    msgNode.textContent = `Post ID ${id} wiped clean from tracking registers.`;
+                    statusNode.style.color = '#b5bd68';
+                    statusNode.textContent = `Asset item ID ${postId} successfully wiped from operational arrays.`;
                     document.getElementById('deletePostForm').reset();
                     synchroniseState();
                 } else {
-                    msgNode.style.color = '#cf6679';
-                    msgNode.textContent = data.error || 'Post removal failed.';
+                    statusNode.style.color = '#cf6679';
+                    statusNode.textContent = data.error || 'Target execution failure processing asset wipe.';
                 }
             } catch (err) {
-                msgNode.style.color = '#cf6679';
-                msgNode.textContent = 'Network execution interrupt during post removal.';
+                statusNode.style.color = '#cf6679';
+                statusNode.textContent = 'Network loss executing runtime instructions.';
             }
         });
-
-        document.getElementById('verifyCredentialsBtn').addEventListener('click', runInitialValidation);
     </script>
 </body>
 </html>
