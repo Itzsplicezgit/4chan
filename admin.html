@@ -10,7 +10,8 @@
     <div id="login-form">
         <h2>Enter Admin Password</h2>
         <input type="password" id="admin-pass" placeholder="Password...">
-        <button onclick="login()">Access Panel</button>
+        <button id="login-btn" onclick="login()">Access Panel</button>
+        <p id="cooldown-msg" style="color: red; font-weight: bold; margin-top: 10px; display: none;"></p>
     </div>
 
     <!-- Main Dashboard Pane (Hidden by Default) -->
@@ -74,6 +75,7 @@
         let currentPassword = '';
         let pendingQueue = [];
         let boardsCache = {};
+        let cooldownTimer = null;
 
         function login() {
             const passInput = document.getElementById('admin-pass').value;
@@ -81,6 +83,30 @@
             currentPassword = passInput;
             
             fetchData();
+        }
+
+        function startFrontendCooldown(seconds) {
+            const loginBtn = document.getElementById('login-btn');
+            const cooldownMsg = document.getElementById('cooldown-msg');
+            
+            loginBtn.disabled = true;
+            cooldownMsg.style.display = 'block';
+            
+            let timeLeft = seconds;
+            
+            if (cooldownTimer) clearInterval(cooldownTimer);
+            
+            cooldownTimer = setInterval(() => {
+                if (timeLeft <= 0) {
+                    clearInterval(cooldownTimer);
+                    loginBtn.disabled = false;
+                    cooldownMsg.style.display = 'none';
+                    cooldownMsg.textContent = '';
+                } else {
+                    cooldownMsg.textContent = `Too many failed attempts. Try again in ${timeLeft} seconds.`;
+                    timeLeft--;
+                }
+            }, 1000);
         }
 
         function getHeaders() {
@@ -95,6 +121,15 @@
                 const response = await fetch('/api/data', {
                     headers: getHeaders()
                 });
+                
+                // Handle backend rate limiting / spam protection
+                if (response.status === 429) {
+                    const errorData = await response.json().catch(() => ({}));
+                    // Tries to look for a specific cooldown wait time back from the API, defaults to 30s
+                    const retryAfter = errorData.retryAfter || 30; 
+                    startFrontendCooldown(retryAfter);
+                    throw new Error(errorData.error || `Rate limit exceeded. Locked for ${retryAfter} seconds.`);
+                }
                 
                 if (!response.ok) {
                     throw new Error('Invalid credentials or connection dropped.');
