@@ -2,302 +2,436 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const archiver = require('archiver'); // Requires 'archiver' npm package for zipping boards
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Master Admin Password configuration
-const ADMIN_PASSWORD = 'fish';
-
+// Parsers
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(express.urlencoded({ extended: true }));
 
-// Ensure storage paths exist
-const DATA_FILE = path.join(__dirname, 'data.json');
+// Storage Directories
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
+const PENDING_DIR = path.join(__dirname, 'pending');
+const DB_FILE = path.join(__dirname, 'database.json');
 
-if (!fs.existsSync(UPLOADS_DIR)) {
-    fs.mkdirSync(UPLOADS_DIR);
-}
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
+if (!fs.existsSync(PENDING_DIR)) fs.mkdirSync(PENDING_DIR);
 
-// In-memory structural database fallback state
+// Master Password & Security
+const ADMIN_PASSWORD = "admin"; // Replace with your secure password
+
+// In-Memory Database Structure
 let db = {
-    boards: {},
+    boards: {
+        all: { title: "All Content", type: "mixed", position: 1 },
+        art: { title: "Artwork Collection", type: "images", position: 2 }
+    },
     posts: [],
-    pendingPosts: []
+    pendingPosts: [],
+    chatMessages: {} // Stores messages indexed by board key: { boardKey: [{ id, text, timestamp, ip }] }
 };
 
-// In-memory tracker for non-admin video upload timestamps by IP
-const videoUploadTimestamps = {};
-
-// Load existing data on startup
-if (fs.existsSync(DATA_FILE)) {
+// Load Database
+if (fs.existsSync(DB_FILE)) {
     try {
-        db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-        if (!db.boards) db.boards = {};
-        if (!db.posts) db.posts = [];
-        if (!db.pendingPosts) db.pendingPosts = [];
+        const fileData = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+        db = { ...db, ...fileData };
+        // Ensure default properties exist
+        if (!db.chatMessages) db.chatMessages = {};
+        Object.keys(db.boards).forEach((key, index) => {
+            if (db.boards[key].position === undefined) {
+                db.boards[key].position = index + 1;
+            }
+        });
     } catch (e) {
-        console.error("Error loading data file, using fresh state:", e);
+        console.error("Error reading database.json, initializing fresh structure:", e);
     }
 }
 
+// Save Database Helper
 function saveDatabase() {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(db, null, 2), 'utf8');
+    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 4), 'utf8');
 }
 
-// Storage setup for file uploads
+// IP-Based Cooldown Manager (1 Minute / 60,000 ms)
+const COOLDOWN_MS = 60000;
+const uploadCooldowns = new Map();
+const chatCooldowns = new Map();
+
+function checkCooldown(ip, cooldownMap) {
+    const now = Date.now();
+    if (cooldownMap.has(ip)) {
+        const lastAction = cooldownMap.get(ip);
+        const elapsed = now - lastAction;
+        if (elapsed < COOLDOWN_MS) {
+            return Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+        }
+    }
+    return 0;
+}
+
+function updateCooldown(ip, cooldownMap) {
+    cooldownMap.set(ip, Date.now());
+}
+
+// Security Middleware
+function adminAuth(req, res, next) {
+    const providedPass = req.headers['x-admin-password'] || req.query.password;
+    if (providedPass !== ADMIN_PASSWORD) {
+        return res.status(401).json({ error: "Invalid master system security passphrase." });
+    }
+    next();
+}
+
+// File Upload Engine Config (Multer)
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, UPLOADS_DIR);
+        // If uploaded by admin, go directly to live uploads, otherwise to pending
+        const isAdmin = req.headers['x-admin-password'] === ADMIN_PASSWORD;
+        cb(null, isAdmin ? UPLOADS_DIR : PENDING_DIR);
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         cb(null, uniqueSuffix + path.extname(file.originalname));
     }
 });
-const upload = multer({ storage: storage });
 
-// Helper to determine media file category
-function getMediaType(filename) {
-    const ext = path.extname(filename).toLowerCase();
-    if (['.mp4', '.webm', '.ogg', '.mov'].includes(ext)) {
-        return 'video';
+const upload = multer({
+    storage: storage,
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime'];
+        if (allowedTypes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Unaccepted file format. Use standard images or videos.'));
+        }
     }
-    return 'image';
-}
+});
 
-// ================= ADMIN VALIDATION MIDDLEWARE =================
-function requireAdminAuth(req, res, next) {
-    const providedPassword = req.headers['x-admin-password'] || req.body.password;
-    
-    if (!providedPassword || providedPassword !== ADMIN_PASSWORD) {
-        return res.status(401).json({ success: false, error: 'Unauthorized: Invalid master system password.' });
-    }
-    next();
-}
+// Serve Frontend Files
+app.use('/uploads', express.static(UPLOADS_DIR));
+app.use('/pending', express.static(PENDING_DIR));
 
-// ================= STATIC PAGE ROOT ROUTING =================
-
-// Serve index.html from root folder
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Serve admin.html from root folder
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
-// Fallback for admin.html extension URL
-app.get('/admin.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'admin.html'));
+// --- API ENDPOINTS ---
+
+// Get Live Data Tree
+app.get('/api/data', (req, res) => {
+    const providedPass = req.headers['x-admin-password'];
+    const isAdmin = providedPass === ADMIN_PASSWORD;
+
+    // Filter out internal details for public feed if needed, or send sanitized payload
+    const clientData = {
+        boards: db.boards,
+        posts: db.posts,
+        chatMessages: db.chatMessages,
+        pendingPosts: isAdmin ? db.pendingPosts : [] // Protect pending queue view
+    };
+    res.json(clientData);
 });
 
-// ================= PUBLIC API ROUTES =================
+// User Media Submission Queue
+app.post('/api/posts/submit', (req, res) => {
+    const clientIp = req.ip || req.headers['x-forwarded-for'];
+    const remainingTime = checkCooldown(clientIp, uploadCooldowns);
+    if (remainingTime > 0) {
+        return res.status(429).json({ error: `Please wait ${remainingTime} seconds before submitting again.` });
+    }
 
-app.get('/api/public/data', (req, res) => {
-    res.json({
-        boards: db.boards,
-        posts: db.posts
+    upload.array('media', 10)(req, res, (err) => {
+        if (err) return res.status(400).json({ error: err.message });
+        if (!req.files || req.files.length === 0) return res.status(400).json({ error: "No media files provided." });
+
+        const targetBoard = req.body.board;
+        if (!db.boards[targetBoard] || db.boards[targetBoard].type === 'chat') {
+            return res.status(400).json({ error: "Invalid target media board." });
+        }
+
+        const newSubmissions = [];
+        req.files.forEach(file => {
+            const isVideo = file.mimetype.startsWith('video/');
+            const postObj = {
+                id: "pnd_" + Date.now() + "_" + Math.round(Math.random() * 100000),
+                board: targetBoard,
+                src: "/pending/" + file.filename,
+                filename: file.filename,
+                type: isVideo ? 'video' : 'image',
+                timestamp: Date.now()
+            };
+            db.pendingPosts.push(postObj);
+            newSubmissions.push(postObj);
+        });
+
+        updateCooldown(clientIp, uploadCooldowns);
+        saveDatabase();
+        res.json({ success: true, message: "Assets buffered in pending approval queue.", items: newSubmissions });
     });
 });
 
-app.post('/api/public/upload', upload.single('media'), (req, res) => {
-    const { board } = req.body;
-    if (!board || !db.boards[board]) {
-        if (req.file) fs.unlinkSync(req.file.path);
-        return res.status(400).json({ success: false, error: 'Target board category does not exist.' });
-    }
-    if (!req.file) {
-        return res.status(400).json({ success: false, error: 'No media file asset provided.' });
-    }
+// Admin Direct Upload (Bypasses Queue)
+app.post('/api/posts/upload', adminAuth, (req, res) => {
+    upload.array('media', 50)(req, res, (err) => {
+        if (err) return res.status(400).json({ error: err.message });
+        if (!req.files || req.files.length === 0) return res.status(400).json({ error: "No media files provided." });
 
-    const mediaType = getMediaType(req.file.filename);
+        const targetBoard = req.body.board;
+        const customId = req.body.customId ? req.body.customId.trim().replace(/[^a-zA-Z0-9_-]/g, '') : null;
 
-    // Track user IP and enforce 5-minute video limit
-    if (mediaType === 'video') {
-        const userIp = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-        const now = Date.now();
-        const cooldownMs = 5 * 60 * 1000; // 5 minutes in milliseconds
-
-        if (videoUploadTimestamps[userIp]) {
-            const timePassed = now - videoUploadTimestamps[userIp];
-            if (timePassed < cooldownMs) {
-                const timeLeftSec = Math.ceil((cooldownMs - timePassed) / 1000);
-                fs.unlinkSync(req.file.path); // Delete the uploaded file immediately
-                return res.status(429).json({ 
-                    success: false, 
-                    error: `Rate limit exceeded. You can upload another video in ${timeLeftSec} seconds.` 
-                });
-            }
+        if (!db.boards[targetBoard] || db.boards[targetBoard].type === 'chat') {
+            return res.status(400).json({ error: "Invalid destination media board target." });
         }
-        // Update the timestamp for successful entries
-        videoUploadTimestamps[userIp] = now;
-    }
 
-    const newPending = {
-        id: String(Date.now()),
-        board: board,
-        src: `/uploads/${req.file.filename}`,
-        type: mediaType
-    };
+        const processed = [];
+        req.files.forEach((file, index) => {
+            const isVideo = file.mimetype.startsWith('video/');
+            const finalId = (customId && req.files.length === 1) ? customId : (Date.now() + "_" + index + "_" + Math.round(Math.random() * 1000));
+            const postObj = {
+                id: finalId,
+                board: targetBoard,
+                src: "/uploads/" + file.filename,
+                filename: file.filename,
+                type: isVideo ? 'video' : 'image',
+                timestamp: Date.now()
+            };
+            db.posts.unshift(postObj);
+            processed.push(postObj);
+        });
 
-    db.pendingPosts.push(newPending);
-    saveDatabase();
-
-    res.json({ success: true, message: 'Submission uploaded successfully and is awaiting admin approval.' });
+        saveDatabase();
+        res.json({ success: true, message: `Successfully published ${processed.length} assets live instantly!`, posts: processed });
+    });
 });
 
-
-// ================= AUTHENTICATED ADMIN ROUTES =================
-
-app.get('/api/data', requireAdminAuth, (req, res) => {
-    res.json(db);
-});
-
-app.post('/api/posts/approve', requireAdminAuth, (req, res) => {
+// Moderation Action (Approve / Deny Pending Upload)
+app.post('/api/posts/approve', adminAuth, (req, res) => {
     const { id, action } = req.body;
-    
-    const itemIndex = db.pendingPosts.findIndex(p => p.id === String(id));
-    if (itemIndex === -1) {
-        return res.status(404).json({ success: false, error: 'Target submission item not found inside the queue.' });
+    const targetIdx = db.pendingPosts.findIndex(p => p.id === id);
+
+    if (targetIdx === -1) {
+        return res.status(404).json({ error: "Pending item key not found in storage registers." });
     }
 
-    const targetItem = db.pendingPosts[itemIndex];
-    db.pendingPosts.splice(itemIndex, 1);
+    const pendingItem = db.pendingPosts[targetIdx];
 
     if (action === 'approve') {
-        db.posts.push(targetItem);
-        saveDatabase();
-        return res.json({ success: true, message: 'Item approved and deployed to live feed.' });
-    } else {
-        const absolutePath = path.join(__dirname, targetItem.src);
-        if (fs.existsSync(absolutePath)) {
-            fs.unlinkSync(absolutePath);
+        const oldPath = path.join(PENDING_DIR, pendingItem.filename);
+        const newPath = path.join(UPLOADS_DIR, pendingItem.filename);
+
+        if (fs.existsSync(oldPath)) {
+            fs.renameSync(oldPath, newPath);
+            const livePost = {
+                id: pendingItem.id.replace('pnd_', ''),
+                board: pendingItem.board,
+                src: "/uploads/" + pendingItem.filename,
+                filename: pendingItem.filename,
+                type: pendingItem.type,
+                timestamp: Date.now()
+            };
+            db.posts.unshift(livePost);
+        } else {
+            return res.status(400).json({ error: "The associated physical file is missing from the pending storage node." });
         }
-        saveDatabase();
-        return res.json({ success: true, message: 'Submission rejected and file deleted from storage.' });
-    }
-});
-
-app.post('/api/boards/create', requireAdminAuth, (req, res) => {
-    const { name, title, type } = req.body;
-    const cleanName = name.trim().toLowerCase().replace(/\s+/g, '');
-
-    if (!cleanName || !title) {
-        return res.status(400).json({ success: false, error: 'Missing required configuration parameters.' });
-    }
-    if (db.boards[cleanName]) {
-        return res.status(400).json({ success: false, error: 'A board with that handle name already exists.' });
+    } else if (action === 'reject') {
+        const filePath = path.join(PENDING_DIR, pendingItem.filename);
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
     }
 
-    db.boards[cleanName] = {
-        title: title,
-        type: type || 'mixed'
-    };
+    db.pendingPosts.splice(targetIdx, 1);
     saveDatabase();
-
-    res.json({ success: true, message: 'New asset board category successfully created.' });
+    res.json({ success: true, action: action });
 });
 
-app.post('/api/boards/delete', requireAdminAuth, (req, res) => {
+// Delete Post From Live Feed
+app.post('/api/posts/delete', adminAuth, (req, res) => {
+    const { id } = req.body;
+    const postIdx = db.posts.findIndex(p => p.id === id);
+
+    if (postIdx === -1) {
+        return res.status(404).json({ error: "Post record search returned negative results." });
+    }
+
+    const targetPost = db.posts[postIdx];
+    const physicalPath = path.join(UPLOADS_DIR, targetPost.filename);
+
+    if (fs.existsSync(physicalPath)) {
+        try {
+            fs.unlinkSync(physicalPath);
+        } catch (e) {
+            console.error("Unlinking failure on static container:", e);
+        }
+    }
+
+    db.posts.splice(postIdx, 1);
+    saveDatabase();
+    res.json({ success: true });
+});
+
+// Chat Boards: Message Submission Route
+app.post('/api/chat/send', (req, res) => {
+    const clientIp = req.ip || req.headers['x-forwarded-for'];
+    const remainingTime = checkCooldown(clientIp, chatCooldowns);
+    if (remainingTime > 0) {
+        return res.status(429).json({ error: `Chat rate limited! Please wait ${remainingTime} seconds.` });
+    }
+
+    const { board, text, author } = req.body;
+
+    if (!board || !text || !db.boards[board] || db.boards[board].type !== 'chat') {
+        return res.status(400).json({ error: "Active communication pipe target is invalid." });
+    }
+
+    const cleanText = text.trim().substring(0, 500); // 500 Character Limit
+    if (!cleanText) return res.status(400).json({ error: "Unable to process zero-length payloads." });
+
+    if (!db.chatMessages[board]) {
+        db.chatMessages[board] = [];
+    }
+
+    const messageObj = {
+        id: "msg_" + Date.now() + "_" + Math.round(Math.random() * 100000),
+        author: author ? author.trim().substring(0, 25) : "Anonymous User",
+        text: cleanText,
+        timestamp: Date.now()
+    };
+
+    db.chatMessages[board].push(messageObj);
+    
+    // Cap in-memory history to 300 messages per chatroom to limit storage weight
+    if (db.chatMessages[board].length > 300) {
+        db.chatMessages[board].shift();
+    }
+
+    updateCooldown(clientIp, chatCooldowns);
+    saveDatabase();
+    res.json({ success: true, message: messageObj });
+});
+
+// Create Category Board
+app.post('/api/boards/create', adminAuth, (req, res) => {
+    const { name, title, type } = req.body;
+    const cleanKey = name.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    if (!cleanKey || !title) {
+        return res.status(400).json({ error: "Parameters fail minimal requirements standard checks." });
+    }
+    if (db.boards[cleanKey]) {
+        return res.status(400).json({ error: "Target structural key conflict detected on system registration." });
+    }
+
+    const position = Object.keys(db.boards).length + 1;
+    db.boards[cleanKey] = {
+        title: title.trim(),
+        type: type, // 'mixed' | 'images' | 'videos' | 'chat'
+        position: position
+    };
+
+    if (type === 'chat') {
+        db.chatMessages[cleanKey] = [];
+    }
+
+    saveDatabase();
+    res.json({ success: true });
+});
+
+// Rearrange / Reorder Boards
+app.post('/api/boards/reorder', adminAuth, (req, res) => {
+    const { order } = req.body; // Array of keys in ordered position: ['key1', 'key2']
+    if (!Array.isArray(order)) {
+        return res.status(400).json({ error: "Order dataset must be a formal array sequence." });
+    }
+
+    order.forEach((key, index) => {
+        if (db.boards[key]) {
+            db.boards[key].position = index + 1;
+        }
+    });
+
+    saveDatabase();
+    res.json({ success: true, message: "Category boards spatial index tracking updated." });
+});
+
+// Delete Category Board and All Nested Assets
+app.post('/api/boards/delete', adminAuth, (req, res) => {
     const { name } = req.body;
 
-    if (!name || !db.boards[name]) {
-        return res.status(400).json({ success: false, error: 'Target destination board does not exist.' });
+    if (!db.boards[name]) {
+        return res.status(404).json({ error: "Registration target element node key match failure." });
     }
 
-    const remainingPosts = [];
-    db.posts.forEach(post => {
-        if (post.board === name) {
-            const filePath = path.join(__dirname, post.src);
-            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-        } else {
-            remainingPosts.push(post);
+    // Delete associated files in uploads
+    const postsToDelete = db.posts.filter(p => p.board === name);
+    postsToDelete.forEach(post => {
+        const filePath = path.join(UPLOADS_DIR, post.filename);
+        if (fs.existsSync(filePath)) {
+            try { fs.unlinkSync(filePath); } catch (e) {}
         }
     });
-    db.posts = remainingPosts;
 
-    const remainingPending = [];
-    db.pendingPosts.forEach(post => {
-        if (post.board === name) {
-            const filePath = path.join(__dirname, post.src);
-            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-        } else {
-            remainingPending.push(post);
+    // Delete associated pending items
+    const pendToDelete = db.pendingPosts.filter(p => p.board === name);
+    pendToDelete.forEach(post => {
+        const filePath = path.join(PENDING_DIR, post.filename);
+        if (fs.existsSync(filePath)) {
+            try { fs.unlinkSync(filePath); } catch (e) {}
         }
     });
-    db.pendingPosts = remainingPending;
+
+    // Filter DB registers
+    db.posts = db.posts.filter(p => p.board !== name);
+    db.pendingPosts = db.pendingPosts.filter(p => p.board !== name);
+    if (db.chatMessages[name]) delete db.chatMessages[name];
 
     delete db.boards[name];
-    saveDatabase();
-
-    res.json({ success: true, message: 'Board category and all containing files deleted.' });
-});
-
-app.post('/api/posts/upload', requireAdminAuth, upload.array('media'), (req, res) => {
-    const { board, customId } = req.body;
-
-    if (!board || !db.boards[board]) {
-        if (req.files) req.files.forEach(f => fs.unlinkSync(f.path));
-        return res.status(400).json({ success: false, error: 'Target collection board handle does not exist.' });
-    }
-    if (!req.files || req.files.length === 0) {
-        return res.status(400).json({ success: false, error: 'No files were provided for processing.' });
-    }
-
-    const totalUploaded = req.files.length;
-    const warnings = [];
-
-    req.files.forEach((file, index) => {
-        const definitiveId = (customId && index === 0) ? String(customId) : String(Date.now() + index + Math.floor(Math.random() * 100));
-
-        const duplicateCheck = db.posts.some(p => p.id === definitiveId);
-        if (duplicateCheck) {
-            warnings.push(`File "${file.originalname}" skipped because ID "${definitiveId}" is already taken.`);
-            fs.unlinkSync(file.path);
-            return;
-        }
-
-        db.posts.push({
-            id: definitiveId,
-            board: board,
-            src: `/uploads/${file.filename}`,
-            type: getMediaType(file.filename)
-        });
-    });
 
     saveDatabase();
-
-    res.json({
-        success: true,
-        message: `Successfully processed and published ${totalUploaded - warnings.length} item(s) direct to feed.`,
-        warnings: warnings.length > 0 ? warnings : null
-    });
+    res.json({ success: true });
 });
 
-app.post('/api/posts/delete', requireAdminAuth, (req, res) => {
-    const { id } = req.body;
+// Admin Utility: Download Entire Board Collection as a ZIP File
+app.get('/api/boards/download', adminAuth, (req, res) => {
+    const targetBoard = req.query.board;
 
-    const itemIndex = db.posts.findIndex(p => p.id === String(id));
-    if (itemIndex === -1) {
-        return res.status(404).json({ success: false, error: 'Post ID string not found in database records.' });
+    if (!targetBoard || !db.boards[targetBoard]) {
+        return res.status(404).json({ error: "Target board not found." });
     }
 
-    const targetPost = db.posts[itemIndex];
+    const targetPosts = db.posts.filter(p => p.board === targetBoard);
     
-    const absolutePath = path.join(__dirname, targetPost.src);
-    if (fs.existsSync(absolutePath)) {
-        fs.unlinkSync(absolutePath);
+    if (targetPosts.length === 0) {
+        return res.status(400).json({ error: "This board has no physical files to download." });
     }
 
-    db.posts.splice(itemIndex, 1);
-    saveDatabase();
+    res.attachment(`${targetBoard}-board-export.zip`);
 
-    res.json({ success: true, message: 'Post dropped off global track listings.' });
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.on('error', (err) => {
+        res.status(500).send({ error: err.message });
+    });
+
+    archive.pipe(res);
+
+    targetPosts.forEach(post => {
+        const filePath = path.join(UPLOADS_DIR, post.filename);
+        if (fs.existsSync(filePath)) {
+            archive.file(filePath, { name: post.filename });
+        }
+    });
+
+    archive.finalize();
 });
 
+// Start Server
 app.listen(PORT, () => {
-    console.log(`Server executing live processes seamlessly at port http://localhost:${PORT}`);
+    console.log(`System Server active and waiting commands on port: ${PORT}`);
 });
