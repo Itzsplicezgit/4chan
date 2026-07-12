@@ -746,7 +746,7 @@
             const boardMeta = localStateCache.boards[board];
             const formData = new FormData();
 
-            let uploadEndpoint = '/api/public/upload';
+            let uploadEndpoint = '/api/posts/upload';
 
             if (boardMeta && boardMeta.type === 'chat') {
                 const textInput = document.getElementById('chatMessageTextarea');
