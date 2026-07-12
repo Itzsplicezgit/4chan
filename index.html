@@ -753,9 +753,10 @@
 
             if (!board) return;
 
-            const boardMeta = localStateCache.boards[board];
-            const formData = new FormData();
-            let uploadEndpoint = '/api/posts/upload';
+const boardMeta = localStateCache.boards[board];
+let formData;
+let uploadEndpoint = '/api/posts/upload';
+let isChatSubmission = false;
 
             if (boardMeta && boardMeta.type === 'chat') {
                 const textInput = document.getElementById('chatMessageTextarea');
@@ -767,9 +768,13 @@
                     return;
                 }
                 
-                uploadEndpoint = '/api/posts/chat';
-                formData.append('board', board);
-                formData.append('message', textInput.value.trim());
+uploadEndpoint = '/api/posts/chat';
+isChatSubmission = true;
+
+formData = JSON.stringify({
+    board: board,
+    message: textInput.value.trim()
+});
             } else {
                 const fileInputEl = document.getElementById('publicMediaFile');
                 const fileInput = fileInputEl ? fileInputEl.files[0] : null;
@@ -824,8 +829,13 @@
                 submitBtn.disabled = false;
             });
 
-            xhr.open('POST', uploadEndpoint, true);
-            xhr.send(formData);
+xhr.open('POST', uploadEndpoint, true);
+
+if (isChatSubmission) {
+    xhr.setRequestHeader('Content-Type', 'application/json');
+}
+
+xhr.send(formData);
         });
 
         // Initialize platform cache cycle logs
