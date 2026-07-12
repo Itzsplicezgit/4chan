@@ -413,7 +413,7 @@
             if (boardMeta.type === 'chat') {
                 container.innerHTML = `
                     <label for="chatMessageTextarea">Message Stream Input</label>
-                    <textarea id="chatMessageTextarea" placeholder="Type an anonymous broadcast text..." required></textarea>
+                    <textarea id="chatMessageTextarea" placeholder="Type an anonymous broadcast text..." maxlength="200" required></textarea>
                     <div class="counter-label" id="chatWordCounter">0 / 200 words</div>
                 `;
                 
@@ -759,7 +759,7 @@
                 }
                 
                 uploadEndpoint = '/api/posts/chat';
-                formData.append('room', board);
+                formData.append('board', board);
                 formData.append('message', textInput.value.trim());
             } else {
                 const fileInputEl = document.getElementById('publicMediaFile');
@@ -776,41 +776,7 @@
 
             const xhr = new XMLHttpRequest();
             xhr.open('POST', uploadEndpoint, true);
-
-            xhr.upload.addEventListener('progress', function(event) {
-                if (event.lengthComputable) {
-                    const percent = Math.round((event.loaded / event.total) * 100);
-                    progFill.style.width = percent + '%';
-                    progText.textContent = percent + '%';
-                }
-            });
-
-            xhr.addEventListener('load', function() {
-                progBox.style.display = 'none';
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    statusMsg.style.color = '#ffffff';
-                    statusMsg.textContent = 'Submission successful!';
-                    localStorage.setItem('darkchan_last_upload', Date.now());
-                    checkClientCooldown();
-                    loadPlatformState();
-                    document.getElementById('publicSubmissionForm').reset();
-                    adjustFormFieldsForBoardType(document.getElementById('submitTargetBoard').value);
-                } else {
-                    statusMsg.style.color = '#cf6679';
-                    statusMsg.textContent = 'Error: ' + xhr.responseText;
-                }
-            });
-
-            xhr.addEventListener('error', function() {
-                progBox.style.display = 'none';
-                statusMsg.style.color = '#cf6679';
-                statusMsg.textContent = 'Network transmission failure.';
-            });
-
-            xhr.send(formData);
         });
-
-        window.addEventListener('DOMContentLoaded', loadPlatformState);
     </script>
 </body>
 </html>
