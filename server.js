@@ -418,45 +418,72 @@ app.post('/api/posts/chat', enforceOperationalCooldown, (req, res) => {
     const { board, message, customId } = req.body;
 
     if (!board || !serverCache.boards[board]) {
-        return res.status(400).json({ success: false, error: 'Target destination room invalid.' });
+        return res.status(400).json({
+            success: false,
+            error: 'Target destination room invalid.'
+        });
     }
 
     const targetBoardMeta = serverCache.boards[board];
+
     if (targetBoardMeta.type !== 'chat') {
-        return res.status(400).json({ success: false, error: 'Action execution blocked: Destination is not a designated chat interface.' });
+        return res.status(400).json({
+            success: false,
+            error: 'Action execution blocked: Destination is not a designated chat interface.'
+        });
     }
 
-    if (!message || String(message).trim().length === 0) {
-        return res.status(400).json({ success: false, error: 'Cannot broadcast an empty message block.' });
+    const cleanedMessage = String(message || '').trim();
+
+    if (!cleanedMessage) {
+        return res.status(400).json({
+            success: false,
+            error: 'Cannot broadcast an empty message block.'
+        });
     }
 
-    const absoluteCharacterCount = String(message).length;
-    if (absoluteCharacterCount > 200) {
-        return res.status(400).json({ success: false, error: `Content limit exceeded. Your submission contains ${absoluteCharacterCount} characters (Maximum limit configuration size: 200 characters).` });
+    if (cleanedMessage.length > 200) {
+        return res.status(400).json({
+            success: false,
+            error: `Content limit exceeded. Your submission contains ${cleanedMessage.length} characters. Maximum limit is 200.`
+        });
     }
 
-    const isSessionAdmin = (req.headers['x-admin-password'] === MASTER_PASSWORD);
-    const assignedPostId = customId ? String(customId).trim() : String(Date.now() + Math.round(Math.random() * 1000));
+    const isSessionAdmin = req.headers['x-admin-password'] === MASTER_PASSWORD;
+
+    const assignedPostId = customId
+        ? String(customId).trim()
+        : String(Date.now() + Math.round(Math.random() * 1000));
 
     const processedChatPayload = {
         id: assignedPostId,
         board: board,
         type: 'text',
-        message: message.trim(),
+        message: cleanedMessage,
         timestamp: Date.now()
     };
 
-    serverCache.posts.push(processedChatPayload);
+    if (isSessionAdmin) {
+        serverCache.posts.push(processedChatPayload);
+    } else {
+        serverCache.pendingPosts.push(processedChatPayload);
+    }
 
     if (!isSessionAdmin && req.clientIpToken) {
         rateLimitCooldownRegistry.set(req.clientIpToken, Date.now());
     }
 
     saveDatabaseToDisk();
-    res.json({ success: true, message: 'Message logged to stream room context.', post: processedChatPayload });
-});
 
-app.get('/api/boards/download/:name', verifyAdminCredentials, (req, res) => {
+    res.json({
+        success: true,
+        message: isSessionAdmin
+            ? 'Admin chat message published directly.'
+            : 'Chat message sent to moderation queue.',
+        post: processedChatPayload
+    });
+});
+app.get('/api/boards/download/:name', verifyAdminCredentials, (req, res) => { 
     const targetBoardHandle = req.params.name;
 
     if (!serverCache.boards[targetBoardHandle]) {
