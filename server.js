@@ -97,11 +97,22 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve frontend static files located in root directory
-app.use(express.static(__dirname));
-
 // Serve raw storage registers securely
 app.use('/uploads', express.static(UPLOADS_DIR));
+
+// --- ADMIN FRONTEND ROUTING FIX ---
+// Explicitly serve the admin interface when hitting /admin directly
+app.get('/admin', (req, res) => {
+    const adminPath = path.join(__dirname, 'admin.html');
+    if (fs.existsSync(adminPath)) {
+        res.sendFile(adminPath);
+    } else {
+        res.status(404).json({ success: false, error: 'admin.html file not found in root directory.' });
+    }
+});
+
+// Serve frontend static files located in root directory (placed after explicit /admin route)
+app.use(express.static(__dirname));
 
 // IP Cooldown Tracker Storage
 const rateLimitCooldownRegistry = new Map();
