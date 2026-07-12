@@ -194,8 +194,6 @@
             text-align: center;
             font-weight: bold;
         }
-        
-        /* Layout formatting specific to row sequencers */
         .order-row-item {
             display: flex;
             align-items: center;
@@ -303,7 +301,7 @@
                     <h2>Rearrange Board Display Sequence</h2>
                     <form id="reorderBoardsForm">
                         <div class="form-group">
-                            <label>Configure Structural Position Hierarchies (Avoids Alphabetical Defaults)</label>
+                            <label>Configure Structural Position Hierarchies</label>
                             <div id="reorderBoardsContainer" style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px; margin-bottom: 12px;">
                                 <div style="color: #aaaaaa; font-style: italic; font-size: 12px;">Loading alignment arrays...</div>
                             </div>
@@ -326,7 +324,7 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="customPostId">Custom Post ID String (Optional / Unique)</label>
+                            <label for="customPostId">Custom Post ID String (Optional)</label>
                             <input type="text" id="customPostId" placeholder="Auto-generated if left blank">
                         </div>
                     </div>
@@ -392,7 +390,7 @@
                 
                 refreshDashboardViews();
             } catch (err) {
-                alert('Database structural tracking dataset sync failed.');
+                alert('Database structural tracking dataset sync failed. Verify pipeline pathways.');
             }
         }
 
@@ -429,14 +427,13 @@
             uploadSelector.innerHTML = '<option value="">Select a board...</option>';
             downloadSelector.innerHTML = '<option value="">Select a board...</option>';
 
-            const boardsList = Object.keys(serverCache.boards).sort((a, b) => {
+            const boardsList = Object.keys(serverCache.boards || {}).sort((a, b) => {
                 return (serverCache.boards[a].position || 0) - (serverCache.boards[b].position || 0);
             });
 
             boardsList.forEach(key => {
                 const title = serverCache.boards[key].title;
                 const type = serverCache.boards[key].type || 'mixed';
-                
                 const optionString = `/${key}/ - ${title} [${type.toUpperCase()}]`;
 
                 const opt1 = document.createElement('option');
@@ -466,7 +463,6 @@
             const statusTxt = document.getElementById('queueStatusMessage');
             
             grid.innerHTML = '';
-            
             const pendingList = serverCache.pendingPosts || [];
             totalCountBadge.textContent = `Total: ${pendingList.length}`;
 
@@ -475,11 +471,9 @@
                 return;
             }
 
-            statusTxt.textContent = `Displaying the top 5 oldest submissions to avoid page lag.`;
+            statusTxt.textContent = `Displaying top entries to optimize performance layouts.`;
 
-            const visibleSlice = pendingList.slice(0, 5);
-
-            visibleSlice.forEach(item => {
+            pendingList.slice(0, 5).forEach(item => {
                 const card = document.createElement('div');
                 card.className = 'queue-card';
 
@@ -491,7 +485,6 @@
                     thumbImg.src = item.thumbnail || '/uploads/thumbnails/video-placeholder.jpg';
                     thumbImg.style.cursor = 'pointer';
                     thumbImg.style.display = 'block';
-                    thumbImg.title = 'Click asset preview frame to activate processing playback streams';
 
                     const actionOverlay = document.createElement('div');
                     actionOverlay.style.position = 'absolute';
@@ -501,30 +494,28 @@
                     actionOverlay.style.background = 'rgba(18, 18, 18, 0.8)';
                     actionOverlay.style.padding = '6px 12px';
                     actionOverlay.style.borderRadius = '4px';
-                    actionOverlay.style.color = '#ffffff';
                     actionOverlay.style.fontSize = '11px';
                     actionOverlay.style.fontWeight = 'bold';
                     actionOverlay.style.pointerEvents = 'none';
-                    actionOverlay.textContent = '▶ ACTIVATE PREVIEW';
+                    actionOverlay.textContent = '▶ PREVIEW';
 
                     mediaBox.appendChild(thumbImg);
                     mediaBox.appendChild(actionOverlay);
 
                     thumbImg.addEventListener('click', () => {
                         mediaBox.innerHTML = '';
-                        const liveVideoNode = document.createElement('video');
-                        liveVideoNode.src = item.src;
-                        liveVideoNode.controls = true;
-                        liveVideoNode.autoplay = true;
-                        liveVideoNode.style.width = '100%';
-                        liveVideoNode.style.height = '100%';
-                        mediaBox.appendChild(liveVideoNode);
+                        const video = document.createElement('video');
+                        video.src = item.src;
+                        video.controls = true;
+                        video.autoplay = true;
+                        video.style.width = '100%';
+                        video.style.height = '100%';
+                        mediaBox.appendChild(video);
                     });
                 } else if (item.type === 'text') {
                     const textSnippet = document.createElement('div');
                     textSnippet.style.padding = '12px';
                     textSnippet.style.fontSize = '12px';
-                    textSnippet.style.color = '#ffffff';
                     textSnippet.style.overflowY = 'auto';
                     textSnippet.style.height = '100%';
                     textSnippet.style.whiteSpace = 'pre-wrap';
@@ -579,7 +570,6 @@
                 const outcome = await response.json();
                 if (response.ok && outcome.success) {
                     serverCache.pendingPosts = serverCache.pendingPosts.filter(p => p.id !== String(postId));
-                    
                     if (actionType === 'approve') {
                         synchroniseState(); 
                     } else {
@@ -597,7 +587,7 @@
             const container = document.getElementById('reorderBoardsContainer');
             container.innerHTML = '';
             
-            const orderedKeys = Object.keys(serverCache.boards).sort((a, b) => {
+            const orderedKeys = Object.keys(serverCache.boards || {}).sort((a, b) => {
                 return (serverCache.boards[a].position || 0) - (serverCache.boards[b].position || 0);
             });
 
@@ -608,7 +598,6 @@
 
             orderedKeys.forEach((key, index) => {
                 const boardItem = serverCache.boards[key];
-                
                 const itemRow = document.createElement('div');
                 itemRow.className = 'order-row-item';
                 itemRow.setAttribute('data-target-key', key);
@@ -661,8 +650,7 @@
             reorderStatusNode.textContent = '';
 
             const serializedSequenceArray = [];
-            const rows = document.querySelectorAll('#reorderBoardsContainer > .order-row-item');
-            rows.forEach(item => {
+            document.querySelectorAll('#reorderBoardsContainer > .order-row-item').forEach(item => {
                 serializedSequenceArray.push(item.getAttribute('data-target-key'));
             });
 
@@ -678,15 +666,15 @@
                 const responseData = await res.json();
                 if (res.ok && responseData.success) {
                     reorderStatusNode.style.color = '#b5bd68';
-                    reorderStatusNode.textContent = 'Custom sequencing arrays mapped down cleanly to the host database registers!';
+                    reorderStatusNode.textContent = 'Custom sequencing arrays mapped down cleanly to database!';
                     synchroniseState();
                 } else {
                     reorderStatusNode.style.color = '#cf6679';
-                    reorderStatusNode.textContent = responseData.error || 'Server processing mutation error mapping array fields.';
+                    reorderStatusNode.textContent = responseData.error || 'Server mutation layout mapping error.';
                 }
             } catch (err) {
                 reorderStatusNode.style.color = '#cf6679';
-                reorderStatusNode.textContent = 'Connectivity failure executing backend tracking update procedures.';
+                reorderStatusNode.textContent = 'Connectivity failure executing backend sequence configurations.';
             }
         });
 
@@ -695,16 +683,11 @@
             const targetBoardHandle = document.getElementById('downloadBoardSelector').value;
             if (!targetBoardHandle) return alert('Select target node category before running archive requests.');
 
-            const accessPass = getAuthPassword();
-            const trackingRouteUrl = `/api/boards/download/${targetBoardHandle}`;
-
-            fetch(trackingRouteUrl, {
-                headers: { 'x-admin-password': accessPass }
+            fetch(`/api/boards/download/${targetBoardHandle}`, {
+                headers: { 'x-admin-password': getAuthPassword() }
             })
             .then(res => {
-                if (!res.ok) {
-                    return res.json().then(parsedErr => { throw new Error(parsedErr.error || 'Archive bundle processing fault.'); });
-                }
+                if (!res.ok) return res.json().then(p => { throw new Error(p.error || 'Archive bundle processing fault.'); });
                 return res.blob();
             })
             .then(downloadedBlob => {
@@ -717,9 +700,7 @@
                 dynamicAnchorElement.remove();
                 window.URL.revokeObjectURL(temporaryUrlPointer);
             })
-            .catch(errorContext => {
-                alert(errorContext.message || 'System network error encountered while processing raw stream outputs.');
-            });
+            .catch(err => alert(err.message || 'System error streaming zip export pipeline.'));
         });
 
         document.getElementById('createBoardForm').addEventListener('submit', async (e) => {
@@ -743,10 +724,10 @@
                     document.getElementById('createBoardForm').reset();
                     synchroniseState();
                 } else {
-                    alert(data.error || 'Process execution error.');
+                    alert(data.error || 'Process creation execution error.');
                 }
             } catch (err) {
-                alert('Connectivity loss running server routines.');
+                alert('Connectivity loss running structural layout routines.');
             }
         });
 
@@ -762,9 +743,7 @@
             try {
                 const res = await fetch(`/api/boards/delete/${name}`, {
                     method: 'DELETE',
-                    headers: { 
-                        'x-admin-password': getAuthPassword()
-                    }
+                    headers: { 'x-admin-password': getAuthPassword() }
                 });
                 const data = await res.json();
                 if (res.ok && data.success) {
@@ -852,9 +831,7 @@
             try {
                 const res = await fetch(`/api/posts/delete/${postId}`, {
                     method: 'DELETE',
-                    headers: { 
-                        'x-admin-password': getAuthPassword()
-                    }
+                    headers: { 'x-admin-password': getAuthPassword() }
                 });
                 const data = await res.json();
                 if (res.ok && data.success) {
